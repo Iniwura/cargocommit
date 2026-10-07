@@ -1,0 +1,7 @@
+{
+  "demo": "CargoCommit Demo B",
+  "purchaseOrderRef": "CC-DEMO-B-001",
+  "shipmentRef": "SYNTHETIC-SHIPMENT-001",
+  "carrier": "Synthetic Carrier",
+  "status": "dispatched"
+}

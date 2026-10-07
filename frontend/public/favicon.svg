@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CargoCommit">
+  <rect width="64" height="64" fill="#171815"/>
+  <path d="M47 14 18 20v26l29 5z" fill="#f7f4ec" stroke="#ede9e0" stroke-width="2"/>
+  <path d="M42 23H29c-4 0-7 3-7 7v5c0 4 3 7 7 7h13" fill="none" stroke="#171815" stroke-width="4"/>
+  <path d="M22 36h23" stroke="#c8b15c" stroke-width="3"/>
+</svg>

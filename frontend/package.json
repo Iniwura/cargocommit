@@ -1,0 +1,28 @@
+{
+  "name": "cargocommit-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src tests",
+    "test": "tsc --ignoreConfig src/model.ts --target ES2022 --module NodeNext --moduleResolution NodeNext --outDir /tmp/cargocommit-frontend-test --skipLibCheck && FRONTEND_TEST_BUILD=/tmp/cargocommit-frontend-test node --test tests/*.test.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "viem": "^2.57.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}
