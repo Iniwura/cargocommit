@@ -504,6 +504,18 @@ html, body { overflow-x: clip; }
 .review-grid > div { min-width: 0; padding: 15px 12px 14px 0; border-bottom: 1px solid var(--cc-faint); }
 .review-grid > div:nth-child(even) { padding-left: 12px; border-left: 1px solid var(--cc-faint); }
 .review-grid strong { display: block; min-width: 0; margin-top: 7px; overflow: hidden; color: var(--cc-ink); font: 400 17px var(--serif); text-overflow: ellipsis; white-space: nowrap; }
+.review-argument-summary { margin-top: 25px; padding: 18px 21px 0; border: 1px solid var(--cc-ink); background: #e4e2d9; }
+.review-argument-heading { display: flex; justify-content: space-between; gap: 18px; padding-bottom: 13px; border-bottom: 1px solid var(--cc-ink); color: var(--cc-ink); font: 9px var(--mono); letter-spacing: .08em; }
+.review-argument-heading small { color: var(--cc-grey); font-size: 8px; }
+.review-argument-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.review-argument-grid > div { min-width: 0; padding: 13px 12px 13px 0; border-bottom: 1px solid var(--cc-faint); }
+.review-argument-grid > div:nth-child(even) { padding-left: 12px; border-left: 1px solid var(--cc-faint); }
+.review-argument-grid span, .review-transaction-meta span { display: block; color: var(--cc-grey); font: 8px var(--mono); letter-spacing: .08em; }
+.review-argument-grid strong, .review-transaction-meta strong { display: block; margin-top: 7px; color: var(--cc-ink); font: 400 15px var(--serif); line-height: 1.15; overflow-wrap: anywhere; }
+.review-transaction-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 2px -21px 0; padding: 0 21px; border-top: 1px solid var(--cc-ink); }
+.review-transaction-meta > div { min-width: 0; padding: 13px 12px 15px 0; border-bottom: 1px solid var(--cc-faint); }
+.review-transaction-meta > div:nth-child(even) { padding-left: 12px; border-left: 1px solid var(--cc-faint); }
+.review-transaction-meta small { display: block; margin-top: 4px; color: var(--cc-grey); font: 8px var(--mono); letter-spacing: .04em; }
 .transaction-rail { display: flex; gap: 10px; align-items: center; margin: 18px 0 0; padding: 11px 0; border-top: 1px solid var(--cc-faint); color: var(--cc-grey); font: 9px var(--mono); letter-spacing: .06em; }
 .creation-success { display: flex; flex-wrap: wrap; gap: 12px 17px; align-items: center; margin-top: 19px; padding-top: 19px; border-top: 1px solid var(--cc-ink); }
 .creation-success p { flex: 1 1 100%; overflow-wrap: anywhere; color: var(--cc-grey); font: 10px var(--mono); }
@@ -572,6 +584,11 @@ html, body { overflow-x: clip; }
   .delivery-timeline i { right: auto; left: 14px; bottom: -11px; }
   .review-grid { grid-template-columns: 1fr; }
   .review-grid > div:nth-child(even) { padding-left: 0; border-left: 0; }
+  .review-argument-heading { display: block; }
+  .review-argument-heading small { display: block; margin-top: 7px; }
+  .review-argument-grid, .review-transaction-meta { grid-template-columns: 1fr; }
+  .review-argument-grid > div:nth-child(even), .review-transaction-meta > div:nth-child(even) { padding-left: 0; border-left: 0; }
+  .review-transaction-meta { margin-inline: -21px; padding-inline: 21px; }
   .proof-tech-summary { display: block; }
   .proof-tech-summary > div, .proof-tech-summary > div + div { padding: 13px 0; border-right: 0; border-bottom: 1px solid var(--cc-faint); }
   .proof-tech-summary > div:last-child { border-bottom: 0; }

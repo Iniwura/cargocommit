@@ -112,6 +112,23 @@ export type CreateOrderCall = {
   value: 0n;
 };
 
+export type CreateOrderReview = {
+  buyer?: string;
+  supplier: string;
+  arbiter: string;
+  amount: bigint;
+  depositPercent: number;
+  fallbackPercent: number;
+  deadlines: readonly [bigint, bigint, bigint, bigint];
+};
+
+export function buildCreateOrderReview(input: CreateOrderReview): CreateOrderReview {
+  return {
+    ...input,
+    deadlines: [...input.deadlines] as [bigint, bigint, bigint, bigint],
+  };
+}
+
 export function buildCreateOrderCall(input: CreateOrderDraftArgs): CreateOrderCall {
   const [fundingDeadline, shipmentDeadline, buyerDecisionDeadline, disputeDeadline] = input.deadlines;
   return {

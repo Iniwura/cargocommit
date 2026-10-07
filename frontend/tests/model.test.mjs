@@ -95,6 +95,26 @@ test('builds the exact contract-domain smoke-test createOrder call', () => {
   assert.equal(call.value, 0n);
 });
 
+test('builds a complete pre-signature create-order review model', () => {
+  const review = model.buildCreateOrderReview({
+    buyer: '0x0000000000000000000000000000000000000001',
+    supplier: '0x62050Fc83a8d0039c089cECf9340CfE92F87B76C',
+    arbiter: '0x4b953a840F79d9b487a748b0Fd168010c89fc2Ae',
+    amount: 10_000_000_000_000_000n,
+    depositPercent: 30,
+    fallbackPercent: 50,
+    deadlines: [1791457200n, 1791543600n, 1791630000n, 1791716400n],
+  });
+
+  assert.equal(review.buyer, '0x0000000000000000000000000000000000000001');
+  assert.equal(review.supplier, '0x62050Fc83a8d0039c089cECf9340CfE92F87B76C');
+  assert.equal(review.arbiter, '0x4b953a840F79d9b487a748b0Fd168010c89fc2Ae');
+  assert.equal(review.amount, 10_000_000_000_000_000n);
+  assert.equal(review.depositPercent, 30);
+  assert.equal(review.fallbackPercent, 50);
+  assert.deepEqual(review.deadlines, [1791457200n, 1791543600n, 1791630000n, 1791716400n]);
+});
+
 test('encodes native USDC in 18 decimals and preserves one-day local deadline spacing', () => {
   assert.equal(model.parseNativeUsdc('0.01'), 10_000_000_000_000_000n);
   const inputs = ['2026-10-08T12:00', '2026-10-09T12:00', '2026-10-10T12:00', '2026-10-11T12:00'];
