@@ -1,8 +1,15 @@
+import type { Address } from 'viem';
+
 export type Role = 'buyer' | 'supplier' | 'arbiter' | 'observer';
 
 export type SettlementSplit = {
+  depositPercent: number;
+  reservePercent: number;
+  /** UI-compatible aliases; ABI values live in the explicitly named contract fields below. */
   depositBps: number;
   reserveBps: number;
+  contractDepositBps: bigint;
+  contractReserveBps: bigint;
   depositAmount: bigint;
   reserveAmount: bigint;
 };
@@ -12,8 +19,8 @@ export type CreateDraftValidation = {
   supplier: string;
   arbiter: string;
   total: bigint;
-  depositBps: string;
-  fallbackBps: string;
+  depositPercent: string;
+  fallbackPercent: string;
   deadlines: readonly bigint[];
   now: bigint;
   poReference: string;
@@ -26,14 +33,101 @@ export type TransactionFailure<T> = {
   error: string;
 };
 
-export function settlementSplit(total: bigint, depositBps: number): SettlementSplit {
-  const normalizedDepositBps = Math.min(99, Math.max(0, Math.trunc(depositBps)));
-  const depositAmount = total * BigInt(normalizedDepositBps) / 100n;
+export function percentToBps(percent: number): bigint {
+  if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+    throw new RangeError('Percentage must be a whole number from 0 to 100.');
+  }
+  return BigInt(percent) * 100n;
+}
+
+export function bpsToPercent(bps: bigint | number): number {
+  const normalized = typeof bps === 'bigint' ? bps : BigInt(bps);
+  if (normalized < 0n || normalized > 10_000n) {
+    throw new RangeError('Basis points must be from 0 to 10000.');
+  }
+  return Number(normalized) / 100;
+}
+
+export function reserveBpsFrom(bps: bigint | number): bigint {
+  const normalized = typeof bps === 'bigint' ? bps : BigInt(bps);
+  if (normalized < 0n || normalized > 10_000n) {
+    throw new RangeError('Basis points must be from 0 to 10000.');
+  }
+  return 10_000n - normalized;
+}
+
+export function settlementSplit(total: bigint, depositPercent: number): SettlementSplit {
+  const normalizedDepositPercent = Math.min(99, Math.max(0, Math.trunc(depositPercent)));
+  const depositBps = percentToBps(normalizedDepositPercent);
+  const reserveBps = reserveBpsFrom(depositBps);
+  const depositAmount = total * depositBps / 10_000n;
   return {
-    depositBps: normalizedDepositBps,
-    reserveBps: 100 - normalizedDepositBps,
+    depositPercent: normalizedDepositPercent,
+    reservePercent: bpsToPercent(reserveBps),
+    depositBps: normalizedDepositPercent,
+    reserveBps: bpsToPercent(reserveBps),
+    contractDepositBps: depositBps,
+    contractReserveBps: reserveBps,
     depositAmount,
     reserveAmount: total - depositAmount,
+  };
+}
+
+export function parseNativeUsdc(value: string): bigint {
+  const normalized = value.replaceAll(',', '').trim() || '0';
+  if (!/^\d+(?:\.\d+)?$/.test(normalized)) throw new Error('Invalid native USDC amount.');
+  const [whole, fraction = ''] = normalized.split('.');
+  if (fraction.length > 18) throw new Error('Native USDC amount has more than 18 decimals.');
+  return BigInt(whole) * 1_000_000_000_000_000_000n + BigInt(fraction.padEnd(18, '0') || '0');
+}
+
+export function parseDeadlineSeconds(value: string): bigint {
+  const milliseconds = new Date(value).getTime();
+  return Number.isFinite(milliseconds) ? BigInt(Math.floor(milliseconds / 1000)) : 0n;
+}
+
+export type CreateOrderDraftArgs = {
+  buyer: Address;
+  supplier: Address;
+  arbiter: Address;
+  amount: bigint;
+  depositPercent: number;
+  fallbackPercent: number;
+  deadlines: readonly [bigint, bigint, bigint, bigint];
+};
+
+export type CreateOrderCall = {
+  args: readonly [
+    Address,
+    Address,
+    Address,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+  ];
+  value: 0n;
+};
+
+export function buildCreateOrderCall(input: CreateOrderDraftArgs): CreateOrderCall {
+  const [fundingDeadline, shipmentDeadline, buyerDecisionDeadline, disputeDeadline] = input.deadlines;
+  return {
+    args: [
+      input.buyer,
+      input.supplier,
+      input.arbiter,
+      input.amount,
+      percentToBps(input.depositPercent),
+      percentToBps(input.fallbackPercent),
+      fundingDeadline,
+      shipmentDeadline,
+      buyerDecisionDeadline,
+      disputeDeadline,
+    ],
+    value: 0n,
   };
 }
 
@@ -54,8 +148,8 @@ export function orderedDeadlines(deadlines: readonly bigint[], now: bigint): boo
 export function validateCreateDraft(draft: CreateDraftValidation): string {
   if (!draft.account || !draft.walletAvailable) return 'Connect an Arc wallet before creating an order.';
   if (!distinctPartyAddresses(draft.account, draft.supplier, draft.arbiter)) return 'Supplier and arbiter must be valid, distinct wallet addresses.';
-  const deposit = Number(draft.depositBps);
-  const fallback = Number(draft.fallbackBps);
+  const deposit = Number(draft.depositPercent);
+  const fallback = Number(draft.fallbackPercent);
   if (draft.total <= 0n || !Number.isInteger(deposit) || deposit < 1 || deposit > 99 || !Number.isInteger(fallback) || fallback < 0 || fallback > 100) {
     return 'Enter an amount, a production deposit from 1% to 99%, and a fallback share from 0% to 100%.';
   }

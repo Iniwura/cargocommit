@@ -14,7 +14,7 @@ import {
   readOrderSnapshot,
 } from './chain';
 import { factoryAbi, orderAbi, type OrderCreatedLog } from './contracts';
-import { formatUsdc, outcomeLabel, roleFor, shortenAddress, statusLabel, type Role } from './model';
+import { buildCreateOrderCall, formatUsdc, outcomeLabel, roleFor, shortenAddress, statusLabel, type Role } from './model';
 
 type View = 'home' | 'proof' | 'create' | 'orders';
 type Snapshot = Awaited<ReturnType<typeof readOrderSnapshot>>;
@@ -111,7 +111,8 @@ function CreateOrder({ account, walletClient, onCreated }: { account?: Address; 
     if (!(deadlines[0] > BigInt(Math.floor(Date.now() / 1000)) && deadlines[1] > deadlines[0] && deadlines[2] > deadlines[1] && deadlines[3] > deadlines[2])) return setError('Deadlines must be future dates in chronological order.');
     setBusy(true);
     try {
-      const hash = await walletClient.writeContract({ address: FACTORY_ADDRESS, abi: factoryAbi, functionName: 'createOrder', args: [account, supplier as Address, arbiter as Address, total, Number(depositBps), Number(fallbackBps), ...deadlines], chain: arcMainnet, account });
+      const createCall = buildCreateOrderCall({ buyer: account, supplier: supplier as Address, arbiter: arbiter as Address, amount: total, depositPercent: Number(depositBps), fallbackPercent: Number(fallbackBps), deadlines });
+      const hash = await walletClient.writeContract({ address: FACTORY_ADDRESS, abi: factoryAbi, functionName: 'createOrder', args: createCall.args, value: createCall.value, chain: arcMainnet, account } as never);
       setMessage(`Creation submitted · ${shortenAddress(hash)}`); const receipt = await publicClient.waitForTransactionReceipt({ hash }); if (receipt.status !== 'success') throw new Error('The order creation transaction reverted.');
       const logs = await fetchOrderCreatedLogs(); const created = logs.find((log) => log.transactionHash?.toLowerCase() === hash.toLowerCase()); if (!created) throw new Error('Receipt succeeded, but the OrderCreated event could not be read back.');
       localStorage.setItem(`cargocommit:order:${created.order}`, JSON.stringify({ poReference: poReference.trim(), documentCommitment: documentCommitment.trim(), savedAt: new Date().toISOString() })); setMessage('Trade order created. Its terms are now immutable.'); onCreated(created.order);

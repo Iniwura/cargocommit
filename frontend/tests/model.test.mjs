@@ -30,6 +30,13 @@ test('calculates reserve percentages without floating point division', () => {
   assert.equal(model.percentOf(0n, 1n), 0);
 });
 
+test('converts whole UI percentages to contract BPS in both directions', () => {
+  for (const [percent, bps] of [[20, 2000n], [30, 3000n], [50, 5000n], [80, 8000n]]) {
+    assert.equal(model.percentToBps(percent), bps);
+    assert.equal(model.bpsToPercent(bps), percent);
+  }
+});
+
 test('keeps every settlement representation on one split source of truth', () => {
   const total = 10_000n * 1_000_000_000_000_000_000n;
   const cases = [
@@ -42,6 +49,8 @@ test('keeps every settlement representation on one split source of truth', () =>
     const split = model.settlementSplit(total, depositBps);
     assert.equal(split.depositBps, depositBps);
     assert.equal(split.reserveBps, reserveBps);
+    assert.equal(split.contractDepositBps, BigInt(depositBps) * 100n);
+    assert.equal(split.contractReserveBps, BigInt(reserveBps) * 100n);
     assert.equal(split.depositAmount, depositWhole * 1_000_000_000_000_000_000n);
     assert.equal(split.reserveAmount, reserveWhole * 1_000_000_000_000_000_000n);
   }
@@ -51,13 +60,59 @@ test('keeps every settlement representation on one split source of truth', () =>
   assert.equal(changedAmount.reserveAmount, 8_750n * 1_000_000_000_000_000_000n);
 });
 
+test('builds the exact contract-domain smoke-test createOrder call', () => {
+  const connectedBuyer = '0x0000000000000000000000000000000000000001';
+  const supplier = '0x62050Fc83a8d0039c089cECf9340CfE92F87B76C';
+  const arbiter = '0x4b953a840F79d9b487a748b0Fd168010c89fc2Ae';
+  const deadlineInputs = [
+    '2026-10-08T12:00',
+    '2026-10-09T12:00',
+    '2026-10-10T12:00',
+    '2026-10-11T12:00',
+  ];
+  const deadlines = deadlineInputs.map(model.parseDeadlineSeconds);
+  const call = model.buildCreateOrderCall({
+    buyer: connectedBuyer,
+    supplier,
+    arbiter,
+    amount: 10_000_000_000_000_000n,
+    depositPercent: 30,
+    fallbackPercent: 50,
+    deadlines,
+  });
+
+  assert.equal(call.args[0], connectedBuyer);
+  assert.notEqual(call.args[0], '0x5c526D2c665147Fab7849353DC65970879379Bb2');
+  assert.equal(call.args[1], supplier);
+  assert.equal(call.args[2], arbiter);
+  assert.equal(call.args[3], 10_000_000_000_000_000n);
+  assert.equal(call.args[4], 3000n);
+  assert.equal(call.args[5], 5000n);
+  assert.equal(call.args[6], deadlines[0]);
+  assert.equal(call.args[7], deadlines[1]);
+  assert.equal(call.args[8], deadlines[2]);
+  assert.equal(call.args[9], deadlines[3]);
+  assert.equal(call.value, 0n);
+});
+
+test('encodes native USDC in 18 decimals and preserves one-day local deadline spacing', () => {
+  assert.equal(model.parseNativeUsdc('0.01'), 10_000_000_000_000_000n);
+  const inputs = ['2026-10-08T12:00', '2026-10-09T12:00', '2026-10-10T12:00', '2026-10-11T12:00'];
+  const deadlines = inputs.map(model.parseDeadlineSeconds);
+  assert.deepEqual(deadlines, inputs.map((value) => BigInt(new Date(value).getTime() / 1000)));
+  assert.equal(deadlines[1] - deadlines[0], 86_400n);
+  assert.equal(deadlines[2] - deadlines[1], 86_400n);
+  assert.equal(deadlines[3] - deadlines[2], 86_400n);
+  assert.ok(deadlines[0] < deadlines[1] && deadlines[1] < deadlines[2] && deadlines[2] < deadlines[3]);
+});
+
 const validDraft = {
   account: '0x0000000000000000000000000000000000000001',
   supplier: '0x0000000000000000000000000000000000000002',
   arbiter: '0x0000000000000000000000000000000000000003',
   total: 10_000n * 1_000_000_000_000_000_000n,
-  depositBps: '30',
-  fallbackBps: '50',
+  depositPercent: '30',
+  fallbackPercent: '50',
   deadlines: [1100n, 1200n, 1300n, 1400n],
   now: 1000n,
   poReference: 'PO-2042',

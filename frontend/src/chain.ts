@@ -11,6 +11,7 @@ import {
   type WalletClient,
 } from 'viem';
 import { FACTORY_ADDRESS, factoryAbi, orderAbi, type OrderCreatedLog } from './contracts';
+import { bpsToPercent } from './model';
 
 export const ARC_RPC = 'https://rpc.mainnet.arc.io';
 export const ARC_EXPLORER = 'https://explorer.arc.io';
@@ -128,8 +129,8 @@ export async function fetchOrderCreatedLogs(client: PublicClient = publicClient)
   }
   return logs.map((log) => ({
     ...log.args,
-    depositBps: Number(log.args.depositBps),
-    fallbackSupplierBps: Number(log.args.fallbackSupplierBps),
+    depositBps: bpsToPercent(log.args.depositBps),
+    fallbackSupplierBps: bpsToPercent(log.args.fallbackSupplierBps),
     blockNumber: log.blockNumber ?? undefined,
     transactionHash: log.transactionHash ?? undefined,
   }));
@@ -149,8 +150,8 @@ export async function readOrderSnapshot(client: PublicClient, address: Address) 
     orderAmount: values[3] as bigint,
     depositAmount: values[4] as bigint,
     reserveAmount: values[5] as bigint,
-    depositBps: Number(values[6]),
-    fallbackSupplierBps: Number(values[7]),
+    depositBps: bpsToPercent(values[6] as bigint),
+    fallbackSupplierBps: bpsToPercent(values[7] as bigint),
     fundingDeadline: values[8] as bigint,
     shipmentDeadline: values[9] as bigint,
     buyerDecisionDeadline: values[10] as bigint,

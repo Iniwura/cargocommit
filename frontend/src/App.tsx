@@ -23,6 +23,7 @@ import {
 } from './chain';
 import { factoryAbi, orderAbi, type OrderCreatedLog } from './contracts';
 import {
+  buildCreateOrderCall,
   formatUsdc,
   outcomeLabel,
   roleFor,
@@ -225,14 +226,24 @@ function CreateOrder({ account, walletClient, onCreated }: { account?: Address; 
     if (!(deadlines[0] > BigInt(Math.floor(Date.now() / 1000)) && deadlines[1] > deadlines[0] && deadlines[2] > deadlines[1] && deadlines[3] > deadlines[2])) return setError('Deadlines must be future dates in chronological order.');
     setBusy(true);
     try {
+      const createCall = buildCreateOrderCall({
+        buyer: account,
+        supplier: supplier as Address,
+        arbiter: arbiter as Address,
+        amount: total,
+        depositPercent: Number(depositBps),
+        fallbackPercent: Number(fallbackBps),
+        deadlines,
+      });
       const hash = await walletClient.writeContract({
         address: FACTORY_ADDRESS,
         abi: factoryAbi,
         functionName: 'createOrder',
-        args: [account, supplier as Address, arbiter as Address, total, Number(depositBps), Number(fallbackBps), ...deadlines],
+        args: createCall.args,
+        value: createCall.value,
         chain: arcMainnet,
         account,
-      });
+      } as never);
       setMessage(`Creation submitted · ${shortenAddress(hash)}`);
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       if (receipt.status !== 'success') throw new Error('The order creation transaction reverted.');
