@@ -2,6 +2,7 @@ import {
   createPublicClient,
   createWalletClient,
   custom,
+  fallback,
   http,
   parseAbiItem,
   type Address,
@@ -16,6 +17,12 @@ export const ARC_EXPLORER = 'https://explorer.arc.io';
 export const ARC_CHAIN_ID = 5042;
 export const ARC_DEPLOYMENT_BLOCK = 24_570_195n;
 
+type Eip1193Provider = {
+  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+  on?: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+};
+
 export const arcMainnet = {
   id: ARC_CHAIN_ID,
   name: 'Arc',
@@ -24,19 +31,31 @@ export const arcMainnet = {
   blockExplorers: { default: { name: 'Arc Explorer', url: ARC_EXPLORER } },
 } as const satisfies Chain;
 
-export const publicClient = createPublicClient({ chain: arcMainnet, transport: http(ARC_RPC) });
-
-type Eip1193Provider = {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-  on?: (event: string, handler: (...args: unknown[]) => void) => void;
-  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
-};
-
 declare global {
   interface Window {
     ethereum?: Eip1193Provider;
   }
 }
+
+function arcReadProvider(provider: Eip1193Provider): Eip1193Provider {
+  return {
+    request: async (args) => {
+      if (args.method !== 'eth_chainId') {
+        const chainId = Number.parseInt(String(await provider.request({ method: 'eth_chainId' })), 16);
+        if (chainId !== ARC_CHAIN_ID) throw new Error('Injected wallet is not connected to Arc mainnet.');
+      }
+      return provider.request(args);
+    },
+  };
+}
+
+const injectedProvider = typeof window !== 'undefined' ? window.ethereum : undefined;
+const directReadTransport = http(ARC_RPC, { timeout: 15_000, retryCount: 2 });
+const readTransport = injectedProvider
+  ? fallback([directReadTransport, custom(arcReadProvider(injectedProvider))], { retryCount: 2 })
+  : directReadTransport;
+
+export const publicClient = createPublicClient({ chain: arcMainnet, transport: readTransport });
 
 export function explorerTx(hash: string): string {
   return `${ARC_EXPLORER}/tx/${hash}`;
