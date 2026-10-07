@@ -129,6 +129,23 @@ export function buildCreateOrderReview(input: CreateOrderReview): CreateOrderRev
   };
 }
 
+export type WalletReviewCheck = {
+  ok: boolean;
+  reason?: 'missing' | 'changed';
+  reviewedBuyer?: string;
+  activeBuyer?: string;
+};
+
+export function checkReviewedBuyer(reviewedBuyer: string | undefined, activeBuyer: string | undefined): WalletReviewCheck {
+  if (!reviewedBuyer || !activeBuyer) return { ok: false, reason: 'missing', reviewedBuyer, activeBuyer };
+  if (reviewedBuyer.toLowerCase() !== activeBuyer.toLowerCase()) return { ok: false, reason: 'changed', reviewedBuyer, activeBuyer };
+  return { ok: true, reviewedBuyer, activeBuyer };
+}
+
+export function walletProviderMatches(selectedProvider: object | undefined, signerProvider: object | undefined): boolean {
+  return Boolean(selectedProvider && signerProvider && selectedProvider === signerProvider);
+}
+
 export function buildCreateOrderCall(input: CreateOrderDraftArgs): CreateOrderCall {
   const [fundingDeadline, shipmentDeadline, buyerDecisionDeadline, disputeDeadline] = input.deadlines;
   return {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 const build = process.env.FRONTEND_TEST_BUILD ?? '/tmp/cargocommit-frontend-test';
 const model = await import(`${build}/model.js`);
+const logRanges = await import(`${build}/logRanges.js`);
 
 test('formats Arc native USDC with 18 decimal precision', () => {
   assert.equal(model.formatUsdc(1_000_000_000_000_000_000n), '1');
@@ -95,6 +96,16 @@ test('builds the exact contract-domain smoke-test createOrder call', () => {
   assert.equal(call.value, 0n);
 });
 
+test('keeps OrderCreated discovery inside bounded block ranges', () => {
+  assert.deepEqual(logRanges.orderCreatedBlockRanges(24_570_195n, 24_574_194n, 2_000n), [
+    [24_570_195n, 24_572_194n],
+    [24_572_195n, 24_574_194n],
+  ]);
+  assert.deepEqual(logRanges.orderCreatedBlockRanges(24_570_195n, 24_570_195n, 2_000n), [[24_570_195n, 24_570_195n]]);
+  assert.deepEqual(logRanges.orderCreatedBlockRanges(24_574_195n, 24_570_195n, 2_000n), []);
+  assert.throws(() => logRanges.orderCreatedBlockRanges(1n, 2n, 0n), /positive/);
+});
+
 test('builds a complete pre-signature create-order review model', () => {
   const review = model.buildCreateOrderReview({
     buyer: '0x0000000000000000000000000000000000000001',
@@ -113,6 +124,41 @@ test('builds a complete pre-signature create-order review model', () => {
   assert.equal(review.depositPercent, 30);
   assert.equal(review.fallbackPercent, 50);
   assert.deepEqual(review.deadlines, [1791457200n, 1791543600n, 1791630000n, 1791716400n]);
+});
+
+test('blocks a changed signer and preserves the reviewed draft', () => {
+  const buyerA = '0x0000000000000000000000000000000000000001';
+  const buyerB = '0x0000000000000000000000000000000000000002';
+  const draft = { amount: '0.01', supplier: '0x62050Fc83a8d0039c089cECf9340CfE92F87B76C', depositPercent: '30' };
+  const before = { ...draft };
+  const sameSigner = model.checkReviewedBuyer(buyerA, buyerA);
+  const changedSigner = model.checkReviewedBuyer(buyerA, buyerB);
+
+  assert.equal(sameSigner.ok, true);
+  assert.equal(changedSigner.ok, false);
+  assert.equal(changedSigner.reason, 'changed');
+  assert.equal(changedSigner.activeBuyer, buyerB);
+  assert.deepEqual(draft, before);
+});
+
+test('binds the selected provider identity to the signer and calldata buyer', () => {
+  const selectedProvider = {};
+  const otherProvider = {};
+  const buyer = '0x0000000000000000000000000000000000000001';
+  const reviewedSigner = model.checkReviewedBuyer(buyer, buyer);
+  assert.equal(model.walletProviderMatches(selectedProvider, selectedProvider), true);
+  assert.equal(model.walletProviderMatches(selectedProvider, otherProvider), false);
+  assert.equal(reviewedSigner.ok, true);
+  const call = model.buildCreateOrderCall({
+    buyer: reviewedSigner.activeBuyer,
+    supplier: '0x0000000000000000000000000000000000000002',
+    arbiter: '0x0000000000000000000000000000000000000003',
+    amount: 10_000_000_000_000_000n,
+    depositPercent: 30,
+    fallbackPercent: 50,
+    deadlines: [1100n, 1200n, 1300n, 1400n],
+  });
+  assert.equal(call.args[0], buyer);
 });
 
 test('encodes native USDC in 18 decimals and preserves one-day local deadline spacing', () => {

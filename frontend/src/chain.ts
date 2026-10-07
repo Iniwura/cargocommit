@@ -11,17 +11,27 @@ import {
   type WalletClient,
 } from 'viem';
 import { FACTORY_ADDRESS, factoryAbi, orderAbi, type OrderCreatedLog } from './contracts';
+import { orderCreatedBlockRanges } from './logRanges';
 import { bpsToPercent } from './model';
+
+export { ORDER_LOG_CHUNK_SIZE, orderCreatedBlockRanges } from './logRanges';
 
 export const ARC_RPC = 'https://rpc.mainnet.arc.io';
 export const ARC_EXPLORER = 'https://explorer.arc.io';
 export const ARC_CHAIN_ID = 5042;
 export const ARC_DEPLOYMENT_BLOCK = 24_570_195n;
 
-type Eip1193Provider = {
+export type Eip1193Provider = {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
   on?: (event: string, handler: (...args: unknown[]) => void) => void;
   removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+};
+
+export type ConnectedArcWallet = {
+  account: Address;
+  walletClient: WalletClient;
+  chainId: number;
+  provider: Eip1193Provider;
 };
 
 export const arcMainnet = {
@@ -66,9 +76,12 @@ export function explorerAddress(address: string): string {
   return `${ARC_EXPLORER}/address/${address}`;
 }
 
-export async function connectArcWallet(): Promise<{ account: Address; walletClient: WalletClient; chainId: number }> {
-  if (!window.ethereum) throw new Error('Install an EVM wallet to continue.');
-  const provider = window.ethereum;
+function connectedWallet(provider: Eip1193Provider, account: Address, chainId: number): ConnectedArcWallet {
+  return { account, walletClient: createWalletClient({ account, chain: arcMainnet, transport: custom(provider) }), chainId, provider };
+}
+
+export async function connectArcWallet(provider: Eip1193Provider = window.ethereum as Eip1193Provider): Promise<ConnectedArcWallet> {
+  if (!provider) throw new Error('Install an EVM wallet to continue.');
   const accounts = (await provider.request({ method: 'eth_requestAccounts' })) as string[];
   if (!accounts[0]) throw new Error('No wallet account was returned.');
   const targetHex = `0x${ARC_CHAIN_ID.toString(16)}`;
@@ -95,14 +108,26 @@ export async function connectArcWallet(): Promise<{ account: Address; walletClie
   }
   if (chainId !== ARC_CHAIN_ID) throw new Error('Wallet is not connected to Arc mainnet.');
   const account = accounts[0] as Address;
-  const walletClient = createWalletClient({ account, chain: arcMainnet, transport: custom(provider) });
-  return { account, walletClient, chainId };
+  return connectedWallet(provider, account, chainId);
 }
 
-export async function fetchOrderCreatedLogs(client: PublicClient = publicClient): Promise<OrderCreatedLog[]> {
+export async function syncArcWallet(provider: Eip1193Provider): Promise<ConnectedArcWallet | undefined> {
+  const accounts = (await provider.request({ method: 'eth_accounts' })) as string[];
+  if (!accounts[0]) return undefined;
+  const chainId = Number.parseInt(String(await provider.request({ method: 'eth_chainId' })), 16);
+  if (chainId !== ARC_CHAIN_ID) throw new Error('Switch your wallet to Arc mainnet to continue.');
+  return connectedWallet(provider, accounts[0] as Address, chainId);
+}
+
+export type OrderCreatedLogQuery = {
+  fromBlock?: bigint;
+  toBlock?: bigint;
+};
+
+export async function fetchOrderCreatedLogs(client: PublicClient = publicClient, query: OrderCreatedLogQuery = {}): Promise<OrderCreatedLog[]> {
   const event = parseAbiItem('event OrderCreated(address indexed order,address indexed buyer,address indexed supplier,address arbiter,uint256 orderAmount,uint16 depositBps,uint16 fallbackSupplierBps,uint256 fundingDeadline,uint256 shipmentDeadline,uint256 buyerDecisionDeadline,uint256 disputeDeadline,bytes32 termsHash)');
-  const latest = await client.getBlockNumber();
-  const chunkSize = 100_000n;
+  const latest = query.toBlock ?? await client.getBlockNumber();
+  const fromBlock = query.fromBlock ?? ARC_DEPLOYMENT_BLOCK;
   type OrderCreatedEventLog = {
     args: {
       order: Address;
@@ -122,9 +147,8 @@ export async function fetchOrderCreatedLogs(client: PublicClient = publicClient)
     transactionHash: `0x${string}` | null;
   };
   const logs: OrderCreatedEventLog[] = [];
-  for (let fromBlock = ARC_DEPLOYMENT_BLOCK; fromBlock <= latest; fromBlock += chunkSize) {
-    const toBlock = fromBlock + chunkSize - 1n > latest ? latest : fromBlock + chunkSize - 1n;
-    const chunkLogs = await client.getLogs({ address: FACTORY_ADDRESS, event, fromBlock, toBlock } as never) as unknown as OrderCreatedEventLog[];
+  for (const [rangeStart, rangeEnd] of orderCreatedBlockRanges(fromBlock, latest)) {
+    const chunkLogs = await client.getLogs({ address: FACTORY_ADDRESS, event, fromBlock: rangeStart, toBlock: rangeEnd } as never) as unknown as OrderCreatedEventLog[];
     logs.push(...chunkLogs);
   }
   return logs.map((log) => ({
