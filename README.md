@@ -27,6 +27,7 @@ Factory: [`0x934159C33C25D0b2e27B237b4cA603D85F019Cf3`](https://explorer.arc.io/
 
 - Demo A: [1.00 USDC order](https://explorer.arc.io/address/0x60958fd86d2d52670181afb4097d1b280a37848c), 0.30 production deposit, 0.70 held then released, final `SETTLED / SUPPLIER_PAID`.
 - Demo B: [0.01 USDC dispute order](https://explorer.arc.io/address/0x6ff65de6016d9e1083b2f7d7e3abaff1ab2c9201), 0.003 deposit, 0.007 protected reserve, premature release and release-while-disputed both reverted, final `DISPUTE_RESOLVED`.
+- Browser-wallet smoke order: [successful create transaction](https://explorer.arc.io/tx/0x6b2ce2c5d43f5a68aca384bae810aefd2aa0fd6962a2d4f211c4bf7ce267137b) created [this 0.01 native-USDC order](https://explorer.arc.io/address/0x7BE2440da225495735957B4b206A4ab4998372Fa) from the browser wallet. It remains intentionally `CREATED` and unfunded; no `fund()` transaction was sent.
 
 The full receipt-by-receipt evidence is in [MAINNET_PROOF.md](MAINNET_PROOF.md), including the synthetic evidence fixture at [fixtures/demo-b/shipment-evidence.json](fixtures/demo-b/shipment-evidence.json).
 

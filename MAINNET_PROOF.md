@@ -17,6 +17,23 @@ This is a local evidence record for the controlled Demo A and Demo B runs.
 
 The deployed factory has no owner function and storage slot zero is zero.
 
+## Browser-wallet smoke proof — created, intentionally unfunded
+
+- Transaction: [`0x6b2ce2c5d43f5a68aca384bae810aefd2aa0fd6962a2d4f211c4bf7ce267137b`](https://explorer.arc.io/tx/0x6b2ce2c5d43f5a68aca384bae810aefd2aa0fd6962a2d4f211c4bf7ce267137b)
+- Receipt status: `success`
+- Block: `24754291`
+- Gas used: `2129678`
+- Created order: [`0x7BE2440da225495735957B4b206A4ab4998372Fa`](https://explorer.arc.io/address/0x7BE2440da225495735957B4b206A4ab4998372Fa)
+- Buyer / browser-wallet sender: `0xd0dd02322AF812fC0dbDdC69f9a055FBBe2C6673`
+- Supplier: `0x62050Fc83a8d0039c089cECf9340CfE92F87B76C`
+- Arbiter: `0x4b953a840F79d9b487a748b0Fd168010c89fc2Ae`
+- Order amount: `10000000000000000` (`0.01` native USDC)
+- Split: `3000` BPS released / `7000` BPS protected
+- Fallback supplier share: `5000` BPS (`50%`)
+- Order readback status: `CREATED` (`0`), with zero reserve funded.
+
+This was a browser-wallet create-order smoke test only. The order was intentionally left unfunded; no `fund()` transaction was sent.
+
 ## Demo A order
 
 - Order: `0x60958fd86d2d52670181afb4097d1b280a37848c`
