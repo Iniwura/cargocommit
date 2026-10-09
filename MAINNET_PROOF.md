@@ -144,4 +144,6 @@ Final balances after Demo B:
 - Arc Foundry tests: `26/26` passed.
 - Invariant campaign: `256` runs, `128000` calls, zero failures.
 - Demo B: completed successfully.
-- Phase 4 frontend: built locally; GitHub publication: not started.
+- GitHub: https://github.com/Iniwura/cargocommit
+- Production: https://cargocommit.vercel.app
+- Final published HEAD: `0db10cbb7f8d826ed53ebd621cc781e3bb7f8cb0`
