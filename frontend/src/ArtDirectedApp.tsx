@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isHex, keccak256, toBytes, type Address, type Hash, type WalletClient } from 'viem';
 import { ARC_CHAIN_ID, ARC_DEPLOYMENT_BLOCK, FACTORY_ADDRESS, arcMainnet, connectArcWallet, explorerAddress, explorerTx, fetchOrderCreatedLogs, isAddress, publicClient, readOrderSnapshot, syncArcWallet, type Eip1193Provider } from './chain';
 import { factoryAbi, orderAbi, type OrderCreatedLog } from './contracts';
-import { buildCreateOrderCall, buildCreateOrderReview, checkReviewedBuyer, distinctPartyAddresses, formatUsdc, outcomeLabel, parseDeadlineSeconds, parseNativeUsdc, roleFor, settlementSplit, shortenAddress, statusLabel, validateCreateDraft, walletProviderMatches, type CreateOrderReview, type Role } from './model';
+import { buildCreateOrderCall, buildCreateOrderReview, checkReviewedBuyer, deriveCreateReviewState, distinctPartyAddresses, formatUsdc, outcomeLabel, parseDeadlineSeconds, parseNativeUsdc, roleFor, settlementSplit, shortenAddress, statusLabel, validateCreateDraft, walletProviderMatches, type CreateOrderReview, type Role } from './model';
 
 type View = 'home' | 'proof' | 'create' | 'orders';
 type Snapshot = Awaited<ReturnType<typeof readOrderSnapshot>>;
@@ -149,7 +149,8 @@ function SettlementBar({ compact = false, depositAmount = 3000n * 10n ** 18n, re
   return <div className={`settlement-bar ${compact ? 'is-compact' : ''}`} aria-label={`${safeDepositPercent} percent released and ${reservePercent} percent ${reserveLabel.toLowerCase()}`}><div className="released-segment" style={{ width: `${safeDepositPercent}%` }}><span>{safeDepositPercent}%</span><b>RELEASED</b><small>{money(depositAmount)}</small></div><div className="protected-segment" style={{ width: `${reservePercent}%` }}><span>{reservePercent}%</span><b>{reserveLabel}</b><small>{money(reserveAmount)}</small></div></div>;
 }
 function DocumentStamp({ children, tone = 'signal' }: { children: React.ReactNode; tone?: 'signal' | 'ink' | 'alert' }) {
-  return <span className={`document-stamp ${tone}`}>{children}</span>;
+  const label = children === 'DRAFT' ? 'NOT REVIEWED' : children;
+  return <span className={`document-stamp ${tone}`}>{label}</span>;
 }
 function PaperCorner() { return <span className="paper-corner" aria-hidden="true" />; }
 
@@ -215,7 +216,7 @@ function reviewDateLabel(value: bigint): string {
 
 function walletReviewMessage(check: ReturnType<typeof checkReviewedBuyer>): string {
   if (check.reason !== 'changed') return 'Review the order again before signing.';
-  return `WALLET CHANGED\nYour active wallet changed from:\n${check.reviewedBuyer}\nto:\n${check.activeBuyer}\nReview the order again before signing.`;
+  return `WALLET CHANGED\nBuyer changed from ${check.reviewedBuyer ?? 'NOT SET'} to ${check.activeBuyer ?? 'NOT CONNECTED'}.\nReview this order again before signing.`;
 }
 
 function ReviewArgumentSummary({ review, poReference }: { review: CreateOrderReview; poReference: string }) {
@@ -240,14 +241,17 @@ function CreateOrder({ account, walletClient, walletProvider, onCreated }: { acc
   const deadlinesReady = deadlines[0] > BigInt(Math.floor(Date.now() / 1000)) && deadlines[1] > deadlines[0] && deadlines[2] > deadlines[1] && deadlines[3] > deadlines[2];
   const commitmentReady = Boolean(poReference.trim() && documentCommitment.trim());
   const missing = [!account ? 'Connected buyer' : '', !partiesReady ? 'Supplier and arbiter' : '', !settlementReady ? 'Amount and split' : '', !deadlinesReady ? 'Chronological deadlines' : '', !commitmentReady ? 'PO reference and local document reference' : ''].filter(Boolean);
-  const ready = missing.length === 0;
-  const walletReview = activePhase === 5 ? checkReviewedBuyer(reviewedBuyer, account) : { ok: true };
-  const reviewChanged = reviewInvalidated || walletReview.reason === 'changed';
-  const reviewBlocked = reviewChanged || !walletReview.ok;
+  const draftReady = missing.length === 0;
+  const reviewState = deriveCreateReviewState({ draftReady, reviewedBuyer, activeBuyer: account, reviewInvalidated });
+  const reviewChanged = reviewState.changed;
+  const reviewReady = reviewState.reviewReady;
+  const reviewBlocked = reviewState.createBlocked;
+  const ready = reviewReady;
   const phases = [
-    ['01', 'PARTIES', partiesReady], ['02', 'SETTLEMENT', settlementReady], ['03', 'DELIVERY', deadlinesReady], ['04', 'COMMITMENT', commitmentReady], ['05', 'REVIEW', ready],
+    ['01', 'PARTIES', partiesReady], ['02', 'SETTLEMENT', settlementReady], ['03', 'DELIVERY', deadlinesReady], ['04', 'COMMITMENT', commitmentReady], ['05', 'REVIEW', reviewReady],
   ] as const;
- const jumpToPhase = (index: number) => { if (index === 5) { setReviewedBuyer(account); setReviewInvalidated(false); } else { setReviewedBuyer(undefined); setReviewInvalidated(false); } setActivePhase(index); window.setTimeout(() => document.getElementById(`composer-phase-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); };
+ const jumpToPhase = (index: number) => { if (index === 5) { setReviewedBuyer(account); setReviewInvalidated(false); setError(''); } else { setReviewedBuyer(undefined); setReviewInvalidated(false); } setActivePhase(index); window.setTimeout(() => document.getElementById(`composer-phase-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); };
+  useEffect(() => { if (reviewChanged) setError(walletReviewMessage({ ok: false, reason: 'changed', reviewedBuyer, activeBuyer: account })); }, [account, reviewChanged, reviewedBuyer]);
   const validate = () => validateCreateDraft({ account, supplier, arbiter, total, depositPercent: depositBps, fallbackPercent: fallbackBps, deadlines, now: BigInt(Math.floor(Date.now() / 1000)), poReference, documentReference: documentCommitment, walletAvailable: Boolean(walletClient) });
   const create = async (event: React.FormEvent) => { event.preventDefault(); setError(''); setMessage(''); const validation = validate(); if (validation) { setError(validation); return; } if (!account || !walletClient || !walletProvider) return; const initialReview = checkReviewedBuyer(reviewedBuyer, account); if (reviewBlocked || !initialReview.ok) { setReviewInvalidated(true); setError(walletReviewMessage(initialReview)); return; } let activeWallet: Awaited<ReturnType<typeof syncArcWallet>>; try { activeWallet = await syncArcWallet(walletProvider); } catch (e) { setError(errorMessage(e)); return; } const signerCheck = checkReviewedBuyer(reviewedBuyer, activeWallet?.account); if (!activeWallet || !walletProviderMatches(walletProvider, activeWallet.provider) || !signerCheck.ok) { setReviewInvalidated(true); setError(walletReviewMessage(signerCheck)); return; } setBusy(true); setStage('preparing'); try { setStage('signing'); const createCall = buildCreateOrderCall({ buyer: activeWallet.account, supplier: supplier as Address, arbiter: arbiter as Address, amount: total, depositPercent: Number(depositBps), fallbackPercent: Number(fallbackBps), deadlines }); const hash = await activeWallet.walletClient.writeContract({ address: FACTORY_ADDRESS, abi: factoryAbi, functionName: 'createOrder', args: createCall.args, value: createCall.value, chain: arcMainnet, account: activeWallet.account } as never); setStage('submitted'); setMessage(`Submitted to Arc · ${shortenAddress(hash)}`); setStage('confirming'); const receipt = await publicClient.waitForTransactionReceipt({ hash }); if (receipt.status !== 'success') throw new Error('The order creation transaction reverted.'); const logs = await fetchOrderCreatedLogs(publicClient, { fromBlock: receipt.blockNumber, toBlock: receipt.blockNumber }); const created = logs.find((log) => log.transactionHash?.toLowerCase() === hash.toLowerCase()); if (!created) throw new Error('Receipt succeeded, but the OrderCreated event could not be read back.'); localStorage.setItem(`cargocommit:order:${created.order}`, JSON.stringify({ poReference: poReference.trim(), documentCommitment: documentCommitment.trim(), savedAt: new Date().toISOString() })); setSuccess({ order: created.order, hash }); setStage('success'); setMessage('Purchase order created. Its terms are now immutable.'); } catch (e) { setStage('idle'); setError(errorMessage(e)); } finally { setBusy(false); } };
   const statusMessage = stage === 'preparing' ? 'PREPARING ORDER' : stage === 'signing' ? 'AWAITING WALLET SIGNATURE' : stage === 'submitted' ? 'SUBMITTED TO ARC' : stage === 'confirming' ? 'CONFIRMING' : stage === 'success' ? 'ORDER CREATED' : '';

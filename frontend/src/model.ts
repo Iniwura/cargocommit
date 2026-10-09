@@ -142,6 +142,28 @@ export function checkReviewedBuyer(reviewedBuyer: string | undefined, activeBuye
   return { ok: true, reviewedBuyer, activeBuyer };
 }
 
+export type CreateReviewStateInput = {
+  draftReady: boolean;
+  reviewedBuyer?: string;
+  activeBuyer?: string;
+  reviewInvalidated?: boolean;
+};
+
+export type CreateReviewState = WalletReviewCheck & {
+  reviewed: boolean;
+  changed: boolean;
+  reviewReady: boolean;
+  createBlocked: boolean;
+};
+
+export function deriveCreateReviewState(input: CreateReviewStateInput): CreateReviewState {
+  const walletCheck = checkReviewedBuyer(input.reviewedBuyer, input.activeBuyer);
+  const reviewed = Boolean(input.reviewedBuyer);
+  const changed = Boolean(reviewed && (input.reviewInvalidated || !input.activeBuyer || walletCheck.reason === 'changed'));
+  const reviewReady = Boolean(input.draftReady && reviewed && !changed && walletCheck.ok);
+  return { ...walletCheck, reviewed, changed, reviewReady, createBlocked: !reviewReady };
+}
+
 export function walletProviderMatches(selectedProvider: object | undefined, signerProvider: object | undefined): boolean {
   return Boolean(selectedProvider && signerProvider && selectedProvider === signerProvider);
 }

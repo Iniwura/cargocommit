@@ -141,6 +141,30 @@ test('blocks a changed signer and preserves the reviewed draft', () => {
   assert.deepEqual(draft, before);
 });
 
+test('account change invalidates the reviewed order without changing commercial terms', () => {
+  const buyerA = '0x0000000000000000000000000000000000000001';
+  const buyerB = '0x0000000000000000000000000000000000000002';
+  const commercialTerms = {
+    amount: '0.01',
+    supplier: '0x62050Fc83a8d0039c089cECf9340CfE92F87B76C',
+    arbiter: '0x4b953a840F79d9b487a748b0Fd168010c89fc2Ae',
+    depositPercent: '30',
+    fallbackPercent: '50',
+    deadlines: [1791457200n, 1791543600n, 1791630000n, 1791716400n],
+    poReference: 'PO-2042',
+  };
+  const before = structuredClone(commercialTerms);
+  const reviewed = model.deriveCreateReviewState({ draftReady: true, reviewedBuyer: buyerA, activeBuyer: buyerA });
+  const afterAccountChange = model.deriveCreateReviewState({ draftReady: true, reviewedBuyer: buyerA, activeBuyer: buyerB });
+
+  assert.equal(reviewed.reviewReady, true);
+  assert.equal(afterAccountChange.activeBuyer, buyerB);
+  assert.equal(afterAccountChange.changed, true);
+  assert.equal(afterAccountChange.reviewReady, false);
+  assert.equal(afterAccountChange.createBlocked, true);
+  assert.deepEqual(commercialTerms, before);
+});
+
 test('binds the selected provider identity to the signer and calldata buyer', () => {
   const selectedProvider = {};
   const otherProvider = {};
