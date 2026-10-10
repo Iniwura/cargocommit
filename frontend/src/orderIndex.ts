@@ -11,7 +11,7 @@ type IndexedActivityItem = {
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const HASH = /^0x[0-9a-fA-F]{64}$/;
 type CatalogOrder = {
-  order: string; buyer: string; supplier: string; arbiter: string;
+  order: string; buyer: string; supplier: string; arbiter: string; originator: string;
   orderAmount: string; depositBps: number; fallbackSupplierBps: number;
   fundingDeadline: string; shipmentDeadline: string; buyerDecisionDeadline: string;
   disputeDeadline: string; termsHash: string; blockNumber: number; transactionHash: string;
@@ -56,6 +56,7 @@ export function parseWalletOrderIndex(raw: unknown, wallet: string, factory: str
     const buyer = toAddress(item.buyer);
     const supplier = toAddress(item.supplier);
     const arbiter = toAddress(item.arbiter);
+    const originator = toAddress(item.originator);
     if (!Number.isSafeInteger(item.blockNumber) ||
       BigInt(item.blockNumber) < deploymentBlock || item.blockNumber > catalog.indexedThrough ||
       !Number.isInteger(item.depositBps) || item.depositBps <= 0 || item.depositBps >= 100 ||
@@ -78,6 +79,10 @@ export function parseWalletOrderIndex(raw: unknown, wallet: string, factory: str
       transactionHash: toHash(item.transactionHash),
       blockNumber: BigInt(item.blockNumber),
     };
+    // Buyer addresses in factory events are caller-supplied. Show only
+    // orders created by the actual declared buyer; direct wallet actions
+    // independently verify the same transaction onchain.
+    if (originator.toLowerCase() !== buyer.toLowerCase()) continue;
     if ([buyer, supplier, arbiter].some(a => a.toLowerCase() === wallet.toLowerCase())) matched.push(parsed);
   }
   matched.sort((a, b) => Number((b.blockNumber ?? 0n) - (a.blockNumber ?? 0n)));
@@ -107,6 +112,7 @@ export async function fetchIndexedOrderBlock(orderAddress: string, factory: stri
     !Array.isArray(catalog.orders)) throw new Error('Order index is incomplete');
   const match = catalog.orders.find(item => item.order?.toLowerCase() === orderAddress.toLowerCase());
   if (!match) return undefined;
+  if (toAddress(match.originator).toLowerCase() !== toAddress(match.buyer).toLowerCase()) return undefined;
   if (!Number.isSafeInteger(match.blockNumber) || match.blockNumber > catalog.indexedThrough)
     throw new Error('Indexed order block is invalid');
   return BigInt(match.blockNumber);
@@ -129,7 +135,7 @@ export async function fetchIndexedOrderActivity(orderAddress: string, factory: s
   }
   const normalized = toAddress(orderAddress).toLowerCase();
   const matched = catalog.orders.find(item => item.order?.toLowerCase() === normalized);
-  if (!matched) return { items: [], indexedThrough: BigInt(catalog.activityIndexedThrough!) };
+  if (!matched || toAddress(matched.originator).toLowerCase() !== toAddress(matched.buyer).toLowerCase()) return { items: [], indexedThrough: BigInt(catalog.activityIndexedThrough!) };
   const records = catalog.activity[normalized];
   if (!Array.isArray(records)) throw new Error('Historical activity is incomplete for this order');
   const items: IndexedActivityItem[] = records.map(record => {
