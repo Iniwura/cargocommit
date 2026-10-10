@@ -1,6 +1,21 @@
 /** Incremental, newest-first factory log discovery. A failed window never advances the cursor. */
 export const ORDER_DISCOVERY_CHUNK = 2_000n;
-export const ORDER_DISCOVERY_PAGE_CHUNKS = 4;
+export const ORDER_DISCOVERY_PAGE_CHUNKS = 2;
+export const ORDER_RECENT_BLOCKS = 4_000n;
+
+/** First pass is a small recent range; historic scans are user initiated. */
+export function recentOrderFloor(latest: bigint, deployment: bigint, window = ORDER_RECENT_BLOCKS): bigint {
+  if (window <= 0n) throw new RangeError('History window must be positive.');
+  return latest - deployment + 1n > window ? latest - window + 1n : deployment;
+}
+
+/** Next older range with no duplicated or skipped blocks. */
+export function olderOrderWindow(oldestScanned: bigint, deployment: bigint, window = ORDER_RECENT_BLOCKS): { cursor: bigint; firstBlock: bigint } | undefined {
+  if (window <= 0n) throw new RangeError('History window must be positive.');
+  if (oldestScanned <= deployment) return undefined;
+  const cursor = oldestScanned - 1n;
+  return { cursor, firstBlock: recentOrderFloor(cursor, deployment, window) };
+}
 
 export function previousOrderWindow(cursor: bigint, firstBlock: bigint, chunkSize = ORDER_DISCOVERY_CHUNK): readonly [bigint, bigint] | undefined {
   if (chunkSize <= 0n) throw new RangeError('Scan chunk must be positive.');
