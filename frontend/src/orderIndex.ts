@@ -1,6 +1,9 @@
 import type { Address, Hash } from 'viem';
 import type { OrderCreatedLog } from './contracts.js';
-import type { OrderActivityItem } from './chain.js';
+type IndexedActivityItem = {
+  key: string; label: string;
+  blockNumber?: bigint; blockTimestamp?: bigint; transactionHash?: Hash;
+};
 
 /** Fast wallet discovery from an index of official Arc factory events.
  * This is discovery only; wallet actions still verify provenance onchain.
@@ -114,7 +117,7 @@ export async function fetchIndexedOrderBlock(orderAddress: string, factory: stri
  * This is a read-only acceleration. The live contract state remains authoritative.
  */
 export async function fetchIndexedOrderActivity(orderAddress: string, factory: string, deploymentBlock: bigint): Promise<{
-  items: OrderActivityItem[]; indexedThrough: bigint;
+  items: IndexedActivityItem[]; indexedThrough: bigint;
 }> {
   const response = await fetch('/seldra-order-index.json', { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
   if (!response.ok) throw new Error('Historical activity index unavailable');
@@ -129,7 +132,7 @@ export async function fetchIndexedOrderActivity(orderAddress: string, factory: s
   if (!matched) return { items: [], indexedThrough: BigInt(catalog.activityIndexedThrough!) };
   const records = catalog.activity[normalized];
   if (!Array.isArray(records)) throw new Error('Historical activity is incomplete for this order');
-  const items: OrderActivityItem[] = records.map(record => {
+  const items: IndexedActivityItem[] = records.map(record => {
     if (!Number.isSafeInteger(record.blockNumber) || BigInt(record.blockNumber) < deploymentBlock ||
         record.blockNumber > catalog.activityIndexedThrough! || !Number.isSafeInteger(record.logIndex) ||
         record.logIndex < 0 || typeof record.label !== 'string' || !/^[A-Z /]+$/.test(record.label) ||

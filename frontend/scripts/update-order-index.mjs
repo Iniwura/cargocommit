@@ -24,7 +24,9 @@ const ACTIVITY_EVENTS = new Map([
 ]);
 const DEPLOYED = 24570195;
 const CHUNK = 5000;
-const MIN_INDEX_PROGRESS = 40000;
+// Publish a new read-only catalog cursor before the browser's 4,000-block
+// delta-read safety limit is likely to be exceeded.
+const MIN_INDEX_PROGRESS = 3000;
 const INDEX = fileURLToPath(new URL('../public/seldra-order-index.json', import.meta.url));
 const MAX_RETRIES = 8;
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
