@@ -1,5 +1,5 @@
 import type { Address, Hash } from 'viem';
-import type { OrderCreatedLog } from './contracts';
+import type { OrderCreatedLog } from './contracts.js';
 
 /** Fast wallet discovery from an index of official Arc factory events.
  * This is discovery only; wallet actions still verify provenance onchain.
