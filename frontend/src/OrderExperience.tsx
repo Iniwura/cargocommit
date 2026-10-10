@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAddress, isHex, keccak256, toBytes, type Address, type Hash, type WalletClient } from 'viem';
-import { ARC_DEPLOYMENT_BLOCK, arcMainnet, explorerAddress, explorerTx, fetchOrderActivity, publicClient, readOrderSnapshot, syncArcWallet, verifyFactoryOrder, proofMatchesSnapshot, type FactoryOrderProof, type OrderActivityItem, type Eip1193Provider } from './chain';
+import { ARC_DEPLOYMENT_BLOCK, FACTORY_ADDRESS, arcMainnet, explorerAddress, explorerTx, fetchOrderActivity, publicClient, readOrderSnapshot, syncArcWallet, verifyFactoryOrder, proofMatchesSnapshot, type FactoryOrderProof, type OrderActivityItem, type Eip1193Provider } from './chain';
 import { orderAbi, type OrderCreatedLog } from './contracts';
 import { FeedbackNotice } from './FeedbackNotice';
 import { pendingReceiptMessage, productErrorText } from './feedback';
+import { fetchIndexedOrderBlock } from './orderIndex';
 import { actionRequiredForRole, formatUsdc, nextActionForRole, orderAddressFromHash, orderBlockHintFromHash, outcomeLabel, roleFor, shortenAddress, statusLabel, type Role } from './model';
 
 type Snapshot = Awaited<ReturnType<typeof readOrderSnapshot>>;
@@ -117,7 +118,9 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
     const blockHint = order?.blockNumber ?? orderBlockHintFromHash(window.location.hash);
     void (async () => {
       try {
-        const proof = await verifyFactoryOrder(publicClient, selectedAddress, blockHint);
+        const verifiedBlockHint = blockHint ?? await fetchIndexedOrderBlock(selectedAddress, FACTORY_ADDRESS);
+        if (verifiedBlockHint === undefined) throw new Error('Order not yet indexed');
+        const proof = await verifyFactoryOrder(publicClient, selectedAddress, verifiedBlockHint);
         const current = await readOrderSnapshot(publicClient, selectedAddress);
         if (cancelled) return;
         if (!proofMatchesSnapshot(proof, current)) {
@@ -131,7 +134,7 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
       } catch {
         if (cancelled) return;
         setProvenance('blocked');
-        setProvenanceError('Seldra could not verify this address against its official factory. Wallet actions are locked until verification succeeds.');
+        setProvenanceError('Seldra cannot verify this order in the factory index yet. Try again when Arc indexing is available, or open a share link containing its creation block. Wallet actions stay locked until verification succeeds.');
       }
     })();
     return () => { cancelled = true; };
