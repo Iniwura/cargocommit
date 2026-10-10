@@ -68,6 +68,11 @@ const readTransport = injectedProvider
   : directReadTransport;
 
 export const publicClient = createPublicClient({ chain: arcMainnet, transport: readTransport });
+// Background factory discovery must not hang on wallet-provider fallback.
+export const orderScanClient = createPublicClient({
+  chain: arcMainnet,
+  transport: http(ARC_RPC, { timeout: 7_000, retryCount: 0 }),
+});
 
 export function explorerTx(hash: string): string {
   return `${ARC_EXPLORER}/tx/${hash}`;
