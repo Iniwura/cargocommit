@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+  # One-shot smoke run when the indexer workflow itself changes.
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/index-orders.yml'
 
 permissions:
   contents: write
