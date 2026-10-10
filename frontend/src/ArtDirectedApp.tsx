@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isHex, keccak256, toBytes, type Address, type Hash, type WalletClient } from 'viem';
-import { ARC_CHAIN_ID, ARC_DEPLOYMENT_BLOCK, FACTORY_ADDRESS, arcMainnet, connectArcWallet, explorerAddress, explorerTx, fetchOrderCreatedLogs, isAddress, publicClient, readOrderSnapshot, syncArcWallet, type Eip1193Provider } from './chain';
+import { ARC_CHAIN_ID, ARC_DEPLOYMENT_BLOCK, FACTORY_ADDRESS, arcMainnet, connectArcWallet, explorerAddress, explorerTx, fetchOrderCreatedLogs, isAddress, orderScanClient, publicClient, readOrderSnapshot, syncArcWallet, type Eip1193Provider } from './chain';
 import { factoryAbi, orderAbi, type OrderCreatedLog } from './contracts';
 import { buildCreateOrderCall, buildCreateOrderReview, checkReviewedBuyer, deriveCreateReviewState, distinctPartyAddresses, formatUsdc, outcomeLabel, parseDeadlineSeconds, parseNativeUsdc, roleFor, settlementSplit, shortenAddress, statusLabel, validateCreateDraft, walletProviderMatches, type CreateOrderReview, type Role } from './model';
 import CreateOrder from './CreateOrderFlow';
 import { OrderDetail, OrdersPage } from './OrderExperience';
 import { FeedbackNotice } from './FeedbackNotice';
 import { productErrorText } from './feedback';
-import { retryOrderRead, scanOrderPage } from './orderDiscovery';
+import { olderOrderWindow, recentOrderFloor, retryOrderRead, scanOrderPage } from './orderDiscovery';
 
 type View = 'home' | 'proof' | 'create' | 'orders';
 type Snapshot = Awaited<ReturnType<typeof readOrderSnapshot>>;
@@ -127,8 +127,8 @@ function StatusDot({ active = false, blocked = false }: { active?: boolean; bloc
 function SectionMark({ index, label }: { index: string; label: string }) {
   return <div className="section-mark"><span>{index}</span><strong>{label}</strong></div>;
 }
-function NetworkBadge({ account, onConnect }: { account?: Address; onConnect: () => void }) {
-  return <div className="network-badge"><StatusDot active={Boolean(account)} /><span>ARC / {ARC_CHAIN_ID}</span>{account ? <span className="account-chip">{shortenAddress(account)}</span> : <button onClick={onConnect}>Connect wallet</button>}</div>;
+function NetworkBadge({ account, onConnect, onDisconnect }: { account?: Address; onConnect: () => void; onDisconnect: () => void }) {
+  return <div className="network-badge"><StatusDot active={Boolean(account)} /><span>ARC / {ARC_CHAIN_ID}</span>{account ? <><span className="account-chip">{shortenAddress(account)}</span><button type="button" className="disconnect-wallet-v2" onClick={onDisconnect} title="Disconnect from Seldra. Manage app permissions separately in your wallet.">DISCONNECT</button></> : <button type="button" onClick={onConnect}>Connect wallet</button>}</div>;
 }
 function RuleLabel({ children }: { children: React.ReactNode }) { return <div className="rule-label"><i />{children}</div>; }
 function PartyGlyph({ address }: { address?: string }) {
@@ -335,11 +335,13 @@ function App() {
   const orderScanAccountRef = useRef<string | undefined>(undefined);
   const orderScanCursorRef = useRef<bigint | undefined>(undefined);
   const orderScanFloorRef = useRef(ARC_DEPLOYMENT_BLOCK);
+  const orderOldestScannedRef = useRef<bigint | undefined>(undefined);
   const orderScanTipRef = useRef<bigint | undefined>(undefined);
   const orderScanFinishedRef = useRef(false);
   const orderScanGenerationRef = useRef(0);
   const orderScanRunningRef = useRef(false);
   const orderScanTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const walletDisconnectedRef = useRef(false);
   const viewRef = useRef(view);
   viewRef.current = view;
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -356,6 +358,7 @@ function App() {
       orderScanCursorRef.current = undefined;
       orderScanTipRef.current = undefined;
       orderScanFloorRef.current = ARC_DEPLOYMENT_BLOCK;
+      orderOldestScannedRef.current = undefined;
       orderScanFinishedRef.current = false;
       ordersRef.current = [];
       setOrders([]);
@@ -374,6 +377,7 @@ function App() {
       orderScanCursorRef.current = undefined;
       orderScanTipRef.current = undefined;
       orderScanFloorRef.current = ARC_DEPLOYMENT_BLOCK;
+      orderOldestScannedRef.current = undefined;
       orderScanFinishedRef.current = false;
       ordersRef.current = [];
       setOrders([]);
@@ -388,9 +392,9 @@ function App() {
     setOrderReadState(ordersRef.current.length ? 'partial' : 'loading');
     try {
       if (orderScanCursorRef.current === undefined) {
-        const latest = await retryOrderRead(() => publicClient.getBlockNumber());
+        const latest = await retryOrderRead(() => orderScanClient.getBlockNumber());
         if (!stillCurrent()) return;
-        if (orderScanFinishedRef.current) orderScanFloorRef.current = (orderScanTipRef.current ?? latest) + 1n;
+        orderScanFloorRef.current = orderScanFinishedRef.current ? (orderScanTipRef.current ?? latest) + 1n : recentOrderFloor(latest, ARC_DEPLOYMENT_BLOCK);
         orderScanTipRef.current = latest;
         orderScanCursorRef.current = latest;
         orderScanFinishedRef.current = false;
@@ -398,11 +402,12 @@ function App() {
       const result = await scanOrderPage({
         cursor: orderScanCursorRef.current,
         firstBlock: orderScanFloorRef.current,
-        read: (fromBlock, toBlock) => { if (!stillCurrent()) throw new Error('Order scan cancelled'); return fetchOrderCreatedLogs(publicClient, { fromBlock, toBlock }); },
+        read: (fromBlock, toBlock) => { if (!stillCurrent()) throw new Error('Order scan cancelled'); return fetchOrderCreatedLogs(orderScanClient, { fromBlock, toBlock }); },
         onWindow: async (logs, fromBlock) => {
           if (!stillCurrent()) return;
           // Save each successful window, not just each page, so retries never restart it.
           orderScanCursorRef.current = fromBlock - 1n;
+          if (orderOldestScannedRef.current === undefined || fromBlock < orderOldestScannedRef.current) orderOldestScannedRef.current = fromBlock;
           const matched = logs.filter((log) => [log.buyer, log.supplier, log.arbiter].some((address) => address.toLowerCase() === accountKey));
           if (matched.length) {
             const byOrder = new Map<string, EnrichedOrder>(ordersRef.current.map((order) => [order.order.toLowerCase(), order]));
@@ -447,15 +452,41 @@ function App() {
     }
   }, [account]);
 
-  const connect = async (provider?: Eip1193Provider) => { setConnectionError(''); try { const result = await connectArcWallet(provider); setWalletProvider(result.provider); setAccount(result.account); setWalletClient(result.walletClient); if (view === 'orders') void refreshOrders(result.account); } catch (e) { setConnectionError(errorMessage(e)); } };
-  const syncWallet = async (provider: Eip1193Provider) => { try { const result = await syncArcWallet(provider); if (!result) { setAccount(undefined); setWalletClient(undefined); return; } setAccount(result.account); setWalletClient(result.walletClient); if (view === 'orders') void refreshOrders(result.account); } catch (e) { setAccount(undefined); setWalletClient(undefined); setConnectionError(errorMessage(e)); } };
+  const connect = async (provider?: Eip1193Provider) => { setConnectionError(''); try { const result = await connectArcWallet(provider); walletDisconnectedRef.current = false; setWalletProvider(result.provider); setAccount(result.account); setWalletClient(result.walletClient); if (view === 'orders') void refreshOrders(result.account); } catch (e) { setConnectionError(errorMessage(e)); } };
+  const syncWallet = async (provider: Eip1193Provider) => { if (walletDisconnectedRef.current) return; try { const result = await syncArcWallet(provider); if (walletDisconnectedRef.current) return; if (!result) { setAccount(undefined); setWalletClient(undefined); return; } setAccount(result.account); setWalletClient(result.walletClient); if (view === 'orders') void refreshOrders(result.account); } catch (e) { setAccount(undefined); setWalletClient(undefined); setConnectionError(errorMessage(e)); } };
+  const loadOlderOrders = () => {
+    if (!account || orderScanRunningRef.current || !orderScanFinishedRef.current) return;
+    const oldest = orderOldestScannedRef.current;
+    if (oldest === undefined) return;
+    const older = olderOrderWindow(oldest, ARC_DEPLOYMENT_BLOCK);
+    if (!older) return;
+    orderScanFloorRef.current = older.firstBlock;
+    orderScanCursorRef.current = older.cursor;
+    orderScanFinishedRef.current = false;
+    void refreshOrders(account);
+  };
+  const disconnectWallet = () => {
+    // Disconnect the website session, not the user's wallet extension permissions.
+    walletDisconnectedRef.current = true;
+    orderScanGenerationRef.current += 1;
+    if (orderScanTimerRef.current) clearTimeout(orderScanTimerRef.current);
+    orderScanRunningRef.current = false;
+    orderScanAccountRef.current = undefined;
+    orderScanCursorRef.current = undefined;
+    orderOldestScannedRef.current = undefined;
+    orderScanFinishedRef.current = false;
+    ordersRef.current = [];
+    setOrders([]); setLoadingOrders(false); setOrderReadState('idle');
+    setOrderReadError(''); setOrderReadProgress(''); setConnectionError('');
+    setWalletProvider(undefined); setWalletClient(undefined); setAccount(undefined);
+  };
   useEffect(() => { if (view === 'orders') void refreshOrders(account); else if (orderScanTimerRef.current) clearTimeout(orderScanTimerRef.current); }, [view, account, refreshOrders]);
   useEffect(() => { const provider = walletProvider; if (!provider) return; const handleWalletChange = () => { void syncWallet(provider); }; provider.on?.('accountsChanged', handleWalletChange); provider.on?.('chainChanged', handleWalletChange); return () => { provider.removeListener?.('accountsChanged', handleWalletChange); provider.removeListener?.('chainChanged', handleWalletChange); }; }, [walletProvider, view]);
   useEffect(() => { const handleConnectRequest = () => { void connect(); }; window.addEventListener('cargocommit:connect-wallet', handleConnectRequest); return () => window.removeEventListener('cargocommit:connect-wallet', handleConnectRequest); }, [view]);
   useEffect(() => { const handleRoute = () => { setView(viewFromHash(window.location.hash)); const order = orderFromHash(window.location.hash); if (order) setSelectedOrder(order); }; window.addEventListener('hashchange', handleRoute); window.addEventListener('popstate', handleRoute); return () => { window.removeEventListener('hashchange', handleRoute); window.removeEventListener('popstate', handleRoute); }; }, []);
   useEffect(() => { const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]')); if (!nodes.length) return; if (!('IntersectionObserver' in window)) { nodes.forEach((node) => node.classList.add('is-in')); return; } const observer = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('is-in'); observer.unobserve(entry.target); } }), { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }); nodes.forEach((node) => observer.observe(node)); return () => observer.disconnect(); }, [view]);
   const selected = orders.find((order) => order.order.toLowerCase() === selectedOrder?.toLowerCase()); const openView = (next: View, order?: Address, blockNumber?: bigint) => { setView(next); if (order) setSelectedOrder(order); const hash = order && next === 'orders' ? `#orders/${order}${blockNumber !== undefined ? `/${blockNumber}` : ''}` : `#${next === 'home' ? 'overview' : next === 'create' ? 'create-order' : next}`; if (window.location.hash !== hash) window.history.pushState({}, '', hash); window.scrollTo({ top: 0, behavior: 'smooth' }); }; const openAbout = () => { openView('home'); window.setTimeout(() => document.getElementById('arc-stage')?.scrollIntoView({ behavior: 'smooth' }), 0); };
- return <div className="app-shell-v2"><header className="site-header-v2 page-shell"><button className="brand-v2" onClick={() => openView('home')}><span className="brand-mark-v2" aria-hidden="true"><b>S</b><i /></span><span className="brand-wordmark-v2">SELDRA</span></button><nav aria-label="Primary product navigation"><button className={view === 'home' ? 'active' : ''} onClick={() => openView('home')}>OVERVIEW</button><button className={view === 'orders' ? 'active' : ''} onClick={() => openView('orders')}>ORDERS</button><button className={view === 'create' ? 'active' : ''} onClick={() => openView('create')}>CREATE ORDER</button><button className={view === 'proof' ? 'active' : ''} onClick={() => openView('proof')}>PROOF</button></nav><div className="header-right-v2"><NetworkBadge account={account} onConnect={() => void connect()} /></div></header>{connectionError && <FeedbackNotice tone="error" title="Wallet connection needs attention" toast onClose={() => setConnectionError('')}>{connectionError}</FeedbackNotice>}{view === 'home' && <Landing onView={openView} onConnect={() => void connect()} />}{view === 'proof' && <ProofPage />}{view === 'create' && <CreateOrder account={account} walletClient={walletClient} walletProvider={walletProvider} onCreated={(order, _hash, blockNumber) => { setSelectedOrder(order); void refreshOrders(); openView('orders', order, blockNumber); }} />}{view === 'orders' && <><OrdersPage account={account} orders={orders} selected={selectedOrder} onSelect={(order) => openView('orders', order)} onRefresh={() => void refreshOrders()} onConnect={() => void connect()} onCreate={() => openView('create')} loading={loadingOrders} readState={orderReadState} readError={orderReadError} readProgress={orderReadProgress} /><section className="page-shell detail-section-v2"><OrderDetail account={account} order={selected} walletClient={walletClient} walletProvider={walletProvider} onRefresh={() => void refreshOrders()} /></section></>}{view !== 'orders' && <footer className="site-footer-v2 page-shell"><div><span>Seldra</span><p>Trade terms that move with the shipment.</p></div><div><button className="footer-anchor" onClick={openAbout}>Why Arc ↗</button><a href={explorerAddress(FACTORY_ADDRESS)} target="_blank" rel="noreferrer">Factory ↗</a><a href="https://github.com/Iniwura/cargocommit" target="_blank" rel="noreferrer">Source ↗</a><a href="https://github.com/Iniwura/cargocommit/blob/master/SECURITY.md" target="_blank" rel="noreferrer">Security ↗</a></div><small>ARC / 5042 / NATIVE USDC</small></footer>}</div>;
+ return <div className="app-shell-v2"><header className="site-header-v2 page-shell"><button className="brand-v2" onClick={() => openView('home')}><span className="brand-mark-v2" aria-hidden="true"><b>S</b><i /></span><span className="brand-wordmark-v2">SELDRA</span></button><nav aria-label="Primary product navigation"><button className={view === 'home' ? 'active' : ''} onClick={() => openView('home')}>OVERVIEW</button><button className={view === 'orders' ? 'active' : ''} onClick={() => openView('orders')}>ORDERS</button><button className={view === 'create' ? 'active' : ''} onClick={() => openView('create')}>CREATE ORDER</button><button className={view === 'proof' ? 'active' : ''} onClick={() => openView('proof')}>PROOF</button></nav><div className="header-right-v2"><NetworkBadge account={account} onConnect={() => void connect()} onDisconnect={disconnectWallet} /></div></header>{connectionError && <FeedbackNotice tone="error" title="Wallet connection needs attention" toast onClose={() => setConnectionError('')}>{connectionError}</FeedbackNotice>}{view === 'home' && <Landing onView={openView} onConnect={() => void connect()} />}{view === 'proof' && <ProofPage />}{view === 'create' && <CreateOrder account={account} walletClient={walletClient} walletProvider={walletProvider} onCreated={(order, _hash, blockNumber) => { setSelectedOrder(order); void refreshOrders(); openView('orders', order, blockNumber); }} />}{view === 'orders' && <><OrdersPage account={account} orders={orders} selected={selectedOrder} onSelect={(order) => openView('orders', order)} onOpenOrder={(order) => openView('orders', order)} olderAvailable={orderScanFinishedRef.current && (orderOldestScannedRef.current ?? ARC_DEPLOYMENT_BLOCK) > ARC_DEPLOYMENT_BLOCK} onLoadOlder={loadOlderOrders} onRefresh={() => void refreshOrders()} onConnect={() => void connect()} onCreate={() => openView('create')} loading={loadingOrders} readState={orderReadState} readError={orderReadError} readProgress={orderReadProgress} /><section className="page-shell detail-section-v2"><OrderDetail account={account} order={selected} walletClient={walletClient} walletProvider={walletProvider} onRefresh={() => void refreshOrders()} /></section></>}{view !== 'orders' && <footer className="site-footer-v2 page-shell"><div><span>Seldra</span><p>Trade terms that move with the shipment.</p></div><div><button className="footer-anchor" onClick={openAbout}>Why Arc ↗</button><a href={explorerAddress(FACTORY_ADDRESS)} target="_blank" rel="noreferrer">Factory ↗</a><a href="https://github.com/Iniwura/cargocommit" target="_blank" rel="noreferrer">Source ↗</a><a href="https://github.com/Iniwura/cargocommit/blob/master/SECURITY.md" target="_blank" rel="noreferrer">Security ↗</a></div><small>ARC / 5042 / NATIVE USDC</small></footer>}</div>;
 }
 
 export default App;
