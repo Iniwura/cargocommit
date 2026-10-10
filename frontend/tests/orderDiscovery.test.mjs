@@ -67,3 +67,18 @@ test('only temporary failures retry; signing errors never use this read helper',
   await assert.rejects(() => discovery.retryOrderRead(async () => { calls++; throw new Error('Invalid arguments'); },async()=>{}), /Invalid arguments/);
   assert.equal(calls,1);
 });
+
+test('recent history search is bounded and older scans are opt-in', () => {
+  assert.equal(discovery.recentOrderFloor(20000n, 1000n), 16001n);
+  assert.equal(discovery.recentOrderFloor(3000n, 1000n), 1000n);
+  assert.deepEqual(discovery.olderOrderWindow(16001n, 1000n), { cursor: 16000n, firstBlock: 12001n });
+  assert.deepEqual(discovery.olderOrderWindow(1000n, 1000n), undefined);
+  assert.throws(() => discovery.recentOrderFloor(10n, 1n, 0n), /positive/);
+});
+
+test('multiple older pages have no gaps or duplicate ranges', () => {
+  const first = discovery.olderOrderWindow(16001n, 1000n);
+  const second = discovery.olderOrderWindow(first.firstBlock, 1000n);
+  assert.deepEqual(first, { cursor: 16000n, firstBlock: 12001n });
+  assert.deepEqual(second, { cursor: 12000n, firstBlock: 8001n });
+});
