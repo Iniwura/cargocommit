@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const build = process.env.FRONTEND_TEST_BUILD || '/tmp/cargocommit-frontend-test';
-const { parseWalletOrderIndex } = await import(build + '/orderIndex.js');
+const { parseWalletOrderIndex, fetchIndexedOrderActivity } = await import(build + '/orderIndex.js');
 const catalog = JSON.parse(readFileSync(new URL('../public/seldra-order-index.json', import.meta.url), 'utf8'));
 const factory = '0x934159C33C25D0b2e27B237b4cA603D85F019Cf3';
 const deployment = 24570195n;
@@ -33,4 +33,17 @@ test('unavailable, incomplete or incorrect catalogs never become false no-order 
   assert.throws(() => parseWalletOrderIndex({ ...catalog, chainId: 1 }, wallet, factory, deployment), /different network/);
   assert.throws(() => parseWalletOrderIndex({ ...catalog, orders: [...catalog.orders, catalog.orders[0]] }, wallet, factory, deployment), /Duplicate/);
   assert.throws(() => parseWalletOrderIndex({ ...catalog, orders: [{ ...catalog.orders[0], blockNumber: catalog.indexedThrough + 1 }] }, wallet, factory, deployment), /Invalid/);
+});
+
+test('complete activity archive includes real settlement and dispute receipts', async () => {
+  assert.equal(typeof fetchIndexedOrderActivity, 'function');
+  assert.ok(Number.isSafeInteger(catalog.activityIndexedThrough));
+  assert.ok(catalog.activityIndexedThrough >= catalog.indexedThrough);
+  const regular = catalog.activity['0x60958fd86d2d52670181afb4097d1b280a37848c'];
+  const dispute = catalog.activity['0x6ff65de6016d9e1083b2f7d7e3abaff1ab2c9201'];
+  const unfunded = catalog.activity['0x7be2440da225495735957b4b206a4ab4998372fa'];
+  assert.ok(regular?.some(item => item.label === 'SETTLED'));
+  assert.ok(dispute?.some(item => item.label === 'DISPUTE OPENED'));
+  assert.ok(dispute?.some(item => item.label === 'SETTLED'));
+  assert.deepEqual(unfunded, []);
 });

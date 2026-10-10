@@ -30,3 +30,5 @@ See [MAINNET_PROOF.md](MAINNET_PROOF.md) for transaction receipts and [README.md
 ## Order discovery trust boundary
 
 The wallet register is accelerated by a public, generated catalog of `OrderCreated` factory events. This is a **read-only discovery index**, not a ledger or authorization source. It can lag the chain, and an unavailable index must never be presented as proof that a wallet has no orders. Individual orders and any wallet action still require official factory-event provenance, the creation transaction, exact immutable terms, and live onchain accounting checks. The user-facing index covers history only through its published `indexedThrough` block and live RPC reads cover more recent blocks when accessible.
+
+Historical lifecycle receipts are accelerated by the same public order index. If the index is behind, Seldra displays an explicit notice and does not make unbounded historical RPC calls. The archived activity is informational; contract status, balances, immutable terms, factory provenance and signing rules are read independently onchain.

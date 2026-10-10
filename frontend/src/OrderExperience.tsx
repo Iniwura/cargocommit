@@ -4,7 +4,7 @@ import { ARC_DEPLOYMENT_BLOCK, FACTORY_ADDRESS, arcMainnet, explorerAddress, exp
 import { orderAbi, type OrderCreatedLog } from './contracts';
 import { FeedbackNotice } from './FeedbackNotice';
 import { pendingReceiptMessage, productErrorText } from './feedback';
-import { fetchIndexedOrderBlock } from './orderIndex';
+import { fetchIndexedOrderActivity, fetchIndexedOrderBlock } from './orderIndex';
 import { actionRequiredForRole, formatUsdc, nextActionForRole, orderLifecycleMilestones, orderAddressFromHash, orderBlockHintFromHash, outcomeLabel, roleFor, shortenAddress, statusLabel, type Role } from './model';
 
 type Snapshot = Awaited<ReturnType<typeof readOrderSnapshot>>;
@@ -164,15 +164,26 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
     setActivityLoading(true);
     void (async () => {
       try {
+        const indexed = await fetchIndexedOrderActivity(selectedAddress, FACTORY_ADDRESS, ARC_DEPLOYMENT_BLOCK);
+        if (activityReadRef.current !== scan) return;
+        const unique = new Map(scan.rows.map(row => [row.key, row]));
+        for (const row of indexed.items) unique.set(row.key, row);
+        scan.rows = Array.from(unique.values()).sort((a, b) => Number((a.blockNumber ?? 0n) - (b.blockNumber ?? 0n)));
+        scan.scannedThrough = scan.scannedThrough === undefined || indexed.indexedThrough > scan.scannedThrough
+          ? indexed.indexedThrough : scan.scannedThrough;
+        setActivity([...scan.rows]);
         const latest = await publicClient.getBlockNumber();
-        const fromBlock = scan.scannedThrough === undefined
-          ? factoryProof.blockNumber
-          : scan.scannedThrough + 1n;
+        const fromBlock = scan.scannedThrough + 1n;
+        // Recent unscheduled updates are small. Never issue a 100k-block
+        // historical fetch from a browser if an indexer job falls behind.
+        if (latest - fromBlock > 4_000n) {
+          if (activityReadRef.current === scan) setActivityError('Recent activity indexing is catching up; archived receipts are still available.');
+          return;
+        }
         if (fromBlock <= latest) {
           const incoming = await fetchOrderActivity(publicClient, selectedAddress, { fromBlock, toBlock: latest });
-          const unique = new Map(scan.rows.map((row) => [row.key, row]));
           for (const row of incoming) unique.set(row.key, row);
-          scan.rows = Array.from(unique.values()).sort((a, b) => Number((a.blockNumber ?? 0n) - (b.blockNumber ?? 0n)));
+          scan.rows = Array.from(unique.values()).sort((a,b)=>Number((a.blockNumber ?? 0n)-(b.blockNumber ?? 0n)));
           scan.scannedThrough = latest;
           if (activityReadRef.current === scan) setActivity([...scan.rows]);
         }
