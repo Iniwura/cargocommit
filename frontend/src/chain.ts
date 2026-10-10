@@ -7,6 +7,7 @@ import {
   parseAbiItem,
   type Address,
   type Chain,
+  type Hash,
   type PublicClient,
   type WalletClient,
 } from 'viem';
@@ -158,6 +159,74 @@ export async function fetchOrderCreatedLogs(client: PublicClient = publicClient,
     blockNumber: log.blockNumber ?? undefined,
     transactionHash: log.transactionHash ?? undefined,
   }));
+}
+
+export type OrderActivityItem = {
+  key: string;
+  label: string;
+  blockNumber?: bigint;
+  blockTimestamp?: bigint;
+  transactionHash?: Hash;
+  detail?: string;
+};
+
+const activityDefinitions = [
+  { key: 'supplier-accepted', label: 'SUPPLIER ACCEPTED', event: parseAbiItem('event SupplierAccepted(uint256 indexed acceptedAt)') },
+  { key: 'order-cancelled', label: 'ORDER CANCELLED', event: parseAbiItem('event OrderCancelled(uint256 indexed cancelledAt)') },
+  { key: 'funded', label: 'FUNDED', event: parseAbiItem('event Funded(uint256 amount,uint256 deposit,uint256 reserve)') },
+  { key: 'deposit-released', label: 'PRODUCTION DEPOSIT RELEASED', event: parseAbiItem('event DepositReleased(address indexed supplier,uint256 amount)') },
+  { key: 'excess-returned', label: 'EXCESS RETURNED', event: parseAbiItem('event ExcessReturned(address indexed recipient,uint256 amount)') },
+  { key: 'shipment-submitted', label: 'SHIPMENT EVIDENCE SUBMITTED', event: parseAbiItem('event ShipmentSubmitted(bytes32 indexed evidenceHash,uint256 indexed submittedAt)') },
+  { key: 'dispute-opened', label: 'DISPUTE OPENED', event: parseAbiItem('event DisputeOpened(bytes32 indexed reasonHash,uint256 indexed openedAt)') },
+  { key: 'settled', label: 'SETTLED', event: parseAbiItem('event Settled(uint8 indexed outcome,uint256 supplierAmount,uint256 buyerAmount,uint256 indexed settledAt)') },
+] as const;
+
+type ActivityLog = {
+  args?: Record<string, unknown>;
+  eventName?: string;
+  blockNumber?: bigint | null;
+  transactionHash?: Hash | null;
+  logIndex?: number | null;
+};
+
+export async function fetchOrderActivity(client: PublicClient, address: Address, query: OrderCreatedLogQuery = {}): Promise<OrderActivityItem[]> {
+  const latest = query.toBlock ?? await client.getBlockNumber();
+  const fromBlock = query.fromBlock ?? ARC_DEPLOYMENT_BLOCK;
+  if (fromBlock > latest) return [];
+  const rows: Array<OrderActivityItem & { logIndex: number }> = [];
+  // A single multi-event filter uses one bounded RPC request per chunk rather
+  // than eight separate requests. viem decodes eventName for each matching log.
+  const definitionsByName = new Map<string, (typeof activityDefinitions)[number]>(
+    activityDefinitions.map((definition) => [definition.event.name, definition]),
+  );
+  for (const [rangeStart, rangeEnd] of orderCreatedBlockRanges(fromBlock, latest)) {
+    const logs = await client.getLogs({
+      address,
+      events: activityDefinitions.map((definition) => definition.event),
+      fromBlock: rangeStart,
+      toBlock: rangeEnd,
+    } as never) as unknown as ActivityLog[];
+    for (const log of logs) {
+      const definition = definitionsByName.get(log.eventName ?? '');
+      if (!definition) continue;
+      rows.push({
+        key: `${definition.key}-${log.transactionHash ?? 'unknown'}-${log.logIndex ?? 0}`,
+        label: definition.label,
+        blockNumber: log.blockNumber ?? undefined,
+        transactionHash: log.transactionHash ?? undefined,
+        detail: definition.key === 'settled' ? `OUTCOME ${String(log.args?.outcome ?? '—')}` : undefined,
+        logIndex: log.logIndex ?? 0,
+      });
+    }
+  }
+  const blockNumbers = [...new Set(rows.flatMap((row) => row.blockNumber === undefined ? [] : [row.blockNumber]))];
+  const timestamps = new Map<bigint, bigint>();
+  await Promise.all(blockNumbers.map(async (blockNumber) => {
+    try { timestamps.set(blockNumber, (await client.getBlock({ blockNumber })).timestamp); } catch { /* block timestamps are supplemental */ }
+  }));
+  return rows
+    .sort((left, right) => Number((left.blockNumber ?? 0n) - (right.blockNumber ?? 0n)) || left.logIndex - right.logIndex)
+    .map(({ logIndex: _logIndex, ...row }) => ({ ...row, blockTimestamp: row.blockNumber === undefined ? undefined : timestamps.get(row.blockNumber) }));
 }
 
 export async function readOrderSnapshot(client: PublicClient, address: Address) {

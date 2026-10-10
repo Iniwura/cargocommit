@@ -44,6 +44,14 @@ export const factoryAbi = [
 ] as const satisfies Abi;
 
 export const orderAbi = [
+  { type: 'event', name: 'SupplierAccepted', inputs: [{ indexed: true, name: 'acceptedAt', type: 'uint256' }] },
+  { type: 'event', name: 'OrderCancelled', inputs: [{ indexed: true, name: 'cancelledAt', type: 'uint256' }] },
+  { type: 'event', name: 'Funded', inputs: [{ indexed: false, name: 'amount', type: 'uint256' }, { indexed: false, name: 'deposit', type: 'uint256' }, { indexed: false, name: 'reserve', type: 'uint256' }] },
+  { type: 'event', name: 'DepositReleased', inputs: [{ indexed: true, name: 'supplier', type: 'address' }, { indexed: false, name: 'amount', type: 'uint256' }] },
+  { type: 'event', name: 'ExcessReturned', inputs: [{ indexed: true, name: 'recipient', type: 'address' }, { indexed: false, name: 'amount', type: 'uint256' }] },
+  { type: 'event', name: 'ShipmentSubmitted', inputs: [{ indexed: true, name: 'evidenceHash', type: 'bytes32' }, { indexed: true, name: 'submittedAt', type: 'uint256' }] },
+  { type: 'event', name: 'DisputeOpened', inputs: [{ indexed: true, name: 'reasonHash', type: 'bytes32' }, { indexed: true, name: 'openedAt', type: 'uint256' }] },
+  { type: 'event', name: 'Settled', inputs: [{ indexed: true, name: 'outcome', type: 'uint8' }, { indexed: false, name: 'supplierAmount', type: 'uint256' }, { indexed: false, name: 'buyerAmount', type: 'uint256' }, { indexed: true, name: 'settledAt', type: 'uint256' }] },
   { type: 'function', name: 'buyer', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'supplier', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'arbiter', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },

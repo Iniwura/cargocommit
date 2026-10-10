@@ -1,4 +1,4 @@
-import type { Address } from 'viem';
+import type { Address, Hash } from 'viem';
 
 export type Role = 'buyer' | 'supplier' | 'arbiter' | 'observer';
 
@@ -121,6 +121,113 @@ export type CreateOrderReview = {
   fallbackPercent: number;
   deadlines: readonly [bigint, bigint, bigint, bigint];
 };
+
+export type CreateWizardStep = 1 | 2 | 3 | 4;
+
+export type LocalOrderDraft = {
+  supplier: string;
+  arbiter: string;
+  amount: string;
+  depositPercent: string;
+  fallbackPercent: string;
+  fundingDeadline: string;
+  shipmentDeadline: string;
+  buyerDecisionDeadline: string;
+  disputeDeadline: string;
+  poReference: string;
+  documentReference: string;
+  step: CreateWizardStep;
+};
+
+export const CREATE_DRAFT_STORAGE_KEY = 'cargocommit:create-draft';
+
+export function normalizeCreateWizardStep(value: unknown): CreateWizardStep {
+  const step = typeof value === 'number' ? value : Number(value);
+  if (step === 2 || step === 3 || step === 4) return step;
+  return 1;
+}
+
+export function serializeLocalOrderDraft(draft: LocalOrderDraft): string {
+  return JSON.stringify({ ...draft, step: normalizeCreateWizardStep(draft.step) });
+}
+
+export function restoreLocalOrderDraft(raw: string | null, fallback: LocalOrderDraft): LocalOrderDraft {
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw) as Partial<LocalOrderDraft>;
+    return {
+      ...fallback,
+      ...Object.fromEntries(Object.keys(fallback).filter((key) => key !== 'step').map((key) => [key, typeof parsed[key as keyof LocalOrderDraft] === 'string' ? parsed[key as keyof LocalOrderDraft] : fallback[key as keyof LocalOrderDraft]])),
+      step: normalizeCreateWizardStep(parsed.step),
+    } as LocalOrderDraft;
+  } catch {
+    return fallback;
+  }
+}
+
+export type PreSignatureInstrument = CreateOrderReview & {
+  poReference: string;
+  documentReference: string;
+  createTransactionValue: 0n;
+  state: 'READY TO CREATE';
+};
+
+export function buildPreSignatureInstrument(input: CreateOrderReview & { poReference: string; documentReference: string }): PreSignatureInstrument {
+  return {
+    ...buildCreateOrderReview(input),
+    poReference: input.poReference,
+    documentReference: input.documentReference,
+    createTransactionValue: 0n,
+    state: 'READY TO CREATE',
+  };
+}
+
+export type CreatedOrderReceipt = {
+  order: Address;
+  transactionHash: Hash;
+  state: 'PURCHASE ORDER CREATED';
+  status: 'AWAITING SUPPLIER ACCEPTANCE';
+  nextAction: 'SUPPLIER ACCEPTS';
+};
+
+export function buildCreatedOrderReceipt(order: Address, transactionHash: Hash): CreatedOrderReceipt {
+  return { order, transactionHash, state: 'PURCHASE ORDER CREATED', status: 'AWAITING SUPPLIER ACCEPTANCE', nextAction: 'SUPPLIER ACCEPTS' };
+}
+
+export function orderAddressFromHash(hash: string): Address | undefined {
+  const match = hash.match(/^#(?:order|orders)\/(0x[0-9a-fA-F]{40})(?:\/)?(?:$|\?)/);
+  return match?.[1] as Address | undefined;
+}
+
+export type ActionSnapshot = {
+  status: number;
+  shipmentDeadline: bigint;
+  buyerDecisionDeadline: bigint;
+  disputeDeadline: bigint;
+};
+
+export function nextActionForRole(role: Role, snapshot?: ActionSnapshot, now = BigInt(Math.floor(Date.now() / 1000))): string {
+  if (!snapshot) return 'READING STATE';
+  if (snapshot.status === 5) return 'SETTLED';
+  if (snapshot.status === 0) return role === 'supplier' ? 'ACCEPT ORDER' : role === 'buyer' ? 'WAITING FOR ACCEPTANCE' : 'SUPPLIER ACCEPTS';
+  if (snapshot.status === 1) return role === 'buyer' ? 'FUND ORDER' : role === 'supplier' ? 'WAITING FOR FUNDING' : 'BUYER FUNDS';
+  if (snapshot.status === 2) return role === 'supplier' ? 'SUBMIT EVIDENCE' : role === 'buyer' && now > snapshot.shipmentDeadline ? 'CLAIM REFUND' : 'SHIPMENT EVIDENCE';
+  if (snapshot.status === 3) {
+    if (role === 'buyer') return now <= snapshot.buyerDecisionDeadline ? 'APPROVE OR DISPUTE' : 'SUPPLIER TIMEOUT';
+    if (role === 'supplier') return now > snapshot.buyerDecisionDeadline ? 'CLAIM TIMEOUT' : 'WAITING FOR BUYER';
+    return 'BUYER APPROVES OR DISPUTES';
+  }
+  if (snapshot.status === 4) {
+    if (role === 'arbiter' && now <= snapshot.disputeDeadline) return 'RESOLVE DISPUTE';
+    if (now > snapshot.disputeDeadline) return 'CLAIM FALLBACK';
+    return 'DISPUTE WINDOW OPEN';
+  }
+  return statusLabel(snapshot.status).toUpperCase();
+}
+
+export function actionRequiredForRole(role: Role, snapshot: ActionSnapshot | undefined, now = BigInt(Math.floor(Date.now() / 1000))): boolean {
+  return ['ACCEPT ORDER', 'FUND ORDER', 'SUBMIT EVIDENCE', 'CLAIM REFUND', 'APPROVE OR DISPUTE', 'CLAIM TIMEOUT', 'RESOLVE DISPUTE', 'CLAIM FALLBACK'].includes(nextActionForRole(role, snapshot, now));
+}
 
 export function buildCreateOrderReview(input: CreateOrderReview): CreateOrderReview {
   return {
@@ -268,4 +375,22 @@ export function outcomeLabel(outcome: number): string {
 export function percentOf(value: bigint, total: bigint): number {
   if (total === 0n) return 0;
   return Number((value * 10_000n) / total) / 100;
+}
+
+/** Human-readable spacing for the four order deadlines in the wizard timeline.
+ *  Timeline row zero is creation; row one is the first deadline, without an interval.
+ */
+export function deadlineGapLabel(deadlines: readonly bigint[], timelineIndex: number): string | undefined {
+  if (!Number.isInteger(timelineIndex) || timelineIndex < 2 || timelineIndex > deadlines.length) return undefined;
+  const earlier = deadlines[timelineIndex - 2];
+  const later = deadlines[timelineIndex - 1];
+  if (earlier === undefined || later === undefined || later <= earlier) return undefined;
+  const seconds = Number(later - earlier);
+  if (!Number.isFinite(seconds)) return undefined;
+  const hours = Math.floor(seconds / 3600);
+  const days = Math.floor(hours / 24);
+  const remaining = hours % 24;
+  if (days && remaining) return `${days}D ${remaining}H`;
+  if (days) return `${days}D`;
+  return `${hours}H`;
 }

@@ -1,14 +1,16 @@
-# CargoCommit
+# Seldra
 
 ## Fund the order once. Release payment as the shipment becomes real.
 
-CargoCommit is a programmable supplier-order settlement layer for importers. A buyer funds the full purchase order, the supplier receives the agreed production deposit, and the remaining balance stays visible and protected in an immutable Arc order contract until shipment approval or a bounded dispute path.
+Seldra is a programmable supplier-order settlement product for importers. A buyer funds the full purchase order, the supplier receives the agreed production deposit, and the remaining balance stays visible and protected in an immutable Arc order contract until shipment approval or a bounded dispute path.
 
 This is not a generic escrow, crypto wallet, FX product, invoice system, lending product, bank, or marketplace. It is experimental settlement infrastructure, not audited production software.
 
+Seldra was originally developed under the working name **CargoCommit**. Its deployed and immutable Arc contracts retain the names `CargoCommitFactory` and `CargoCommitOrder`; this is a frontend and product-name change, not a new contract deployment. Historical addresses and proof records are unchanged. The original GitHub and production URLs may still contain `cargocommit` during the brand migration.
+
 ## Why Arc
 
-Arc settles native USDC value directly. CargoCommit therefore uses the exact same 18-decimal native units for funding, deposit release, reserve accounting, gas, and readback. There is no ERC-20 approval flow in this prototype. The Arc-specific assumptions and deployment controls are documented in [DEPLOYMENT.md](DEPLOYMENT.md).
+Arc settles native USDC value directly. Seldra therefore uses the exact same 18-decimal native units for funding, deposit release, reserve accounting, gas, and readback. There is no ERC-20 approval flow in this prototype. The Arc-specific assumptions and deployment controls are documented in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Product flow
 
@@ -33,7 +35,7 @@ The full receipt-by-receipt evidence is in [MAINNET_PROOF.md](MAINNET_PROOF.md),
 
 ## Frontend
 
-The Phase 4 frontend lives in [`frontend/`](frontend/). It is a read/write Arc mainnet client, not a mock dashboard:
+The Seldra frontend lives in [`frontend/`](frontend/). It is a read/write Arc mainnet client, not a mock dashboard:
 
 - reads the live factory and order contracts with `viem`;
 - discovers orders from `OrderCreated` events;

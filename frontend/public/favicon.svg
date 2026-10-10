@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CargoCommit">
-  <rect width="64" height="64" fill="#171815"/>
-  <path d="M47 14 18 20v26l29 5z" fill="#f7f4ec" stroke="#ede9e0" stroke-width="2"/>
-  <path d="M42 23H29c-4 0-7 3-7 7v5c0 4 3 7 7 7h13" fill="none" stroke="#171815" stroke-width="4"/>
-  <path d="M22 36h23" stroke="#c8b15c" stroke-width="3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Seldra">
+  <rect width="64" height="64" rx="9" fill="#171815"/>
+  <path d="M15 12h30l7 7v33H15z" fill="#f7f4ec"/>
+  <path d="M45 12v8h7" fill="none" stroke="#171815" stroke-width="2.5"/>
+  <path d="M41 26H28c-4 0-6 2-6 5s2 5 7 5h6c5 0 7 2 7 5s-3 5-7 5H22" fill="none" stroke="#171815" stroke-width="4" stroke-linecap="square"/>
+  <path d="M15 52h37" stroke="#b5a067" stroke-width="3"/>
 </svg>

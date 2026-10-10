@@ -126,6 +126,79 @@ test('builds a complete pre-signature create-order review model', () => {
   assert.deepEqual(review.deadlines, [1791457200n, 1791543600n, 1791630000n, 1791716400n]);
 });
 
+test('builds the generated instrument without persisting signer or review state', () => {
+  const instrument = model.buildPreSignatureInstrument({
+    buyer: '0x0000000000000000000000000000000000000001',
+    supplier: '0x0000000000000000000000000000000000000002',
+    arbiter: '0x0000000000000000000000000000000000000003',
+    amount: 10_000n * 1_000_000_000_000_000_000n,
+    depositPercent: 30,
+    fallbackPercent: 50,
+    deadlines: [1100n, 1200n, 1300n, 1400n],
+    poReference: 'PO-2042',
+    documentReference: 'local-doc-2042',
+  });
+
+  assert.equal(instrument.state, 'READY TO CREATE');
+  assert.equal(instrument.createTransactionValue, 0n);
+  assert.equal(instrument.poReference, 'PO-2042');
+  assert.equal(instrument.documentReference, 'local-doc-2042');
+  assert.equal('reviewedBuyer' in instrument, false);
+});
+
+test('restores only local commercial draft fields and preserves the four-step position', () => {
+  const fallback = {
+    supplier: '',
+    arbiter: '',
+    amount: '10000',
+    depositPercent: '30',
+    fallbackPercent: '50',
+    fundingDeadline: '2026-10-08T12:00',
+    shipmentDeadline: '2026-10-09T12:00',
+    buyerDecisionDeadline: '2026-10-10T12:00',
+    disputeDeadline: '2026-10-11T12:00',
+    poReference: '',
+    documentReference: '',
+    step: 1,
+  };
+  const raw = model.serializeLocalOrderDraft({ ...fallback, supplier: '0x0000000000000000000000000000000000000002', poReference: 'PO-2042', step: 3 });
+  const restored = model.restoreLocalOrderDraft(raw, fallback);
+
+  assert.equal(restored.supplier, '0x0000000000000000000000000000000000000002');
+  assert.equal(restored.poReference, 'PO-2042');
+  assert.equal(restored.step, 3);
+  assert.equal('buyer' in restored, false);
+  assert.equal(model.normalizeCreateWizardStep(0), 1);
+  assert.equal(model.normalizeCreateWizardStep(5), 1);
+});
+
+test('builds a post-create receipt with the supplier next action', () => {
+  const receipt = model.buildCreatedOrderReceipt('0x0000000000000000000000000000000000000001', '0x0000000000000000000000000000000000000000000000000000000000000002');
+  assert.equal(receipt.state, 'PURCHASE ORDER CREATED');
+  assert.equal(receipt.status, 'AWAITING SUPPLIER ACCEPTANCE');
+  assert.equal(receipt.nextAction, 'SUPPLIER ACCEPTS');
+});
+
+test('parses public shareable order links without requiring a wallet', () => {
+  const order = '0x0000000000000000000000000000000000000001';
+  assert.equal(model.orderAddressFromHash(`#order/${order}`), order);
+  assert.equal(model.orderAddressFromHash(`#orders/${order}`), order);
+  assert.equal(model.orderAddressFromHash('#order/not-an-address'), undefined);
+});
+
+test('derives lifecycle next actions and action-required state from actual role and status', () => {
+  const snapshot = { status: 0, shipmentDeadline: 2000n, buyerDecisionDeadline: 3000n, disputeDeadline: 4000n };
+  assert.equal(model.nextActionForRole('supplier', snapshot, 1000n), 'ACCEPT ORDER');
+  assert.equal(model.nextActionForRole('buyer', { ...snapshot, status: 1 }, 1000n), 'FUND ORDER');
+  assert.equal(model.nextActionForRole('supplier', { ...snapshot, status: 2 }, 1000n), 'SUBMIT EVIDENCE');
+  assert.equal(model.nextActionForRole('buyer', { ...snapshot, status: 3 }, 1000n), 'APPROVE OR DISPUTE');
+  assert.equal(model.nextActionForRole('arbiter', { ...snapshot, status: 4 }, 1000n), 'RESOLVE DISPUTE');
+  assert.equal(model.nextActionForRole('buyer', { ...snapshot, status: 5 }, 1000n), 'SETTLED');
+  assert.equal(model.actionRequiredForRole('supplier', snapshot, 1000n), true);
+  assert.equal(model.actionRequiredForRole('buyer', { ...snapshot, status: 0 }, 1000n), false);
+  assert.equal(model.actionRequiredForRole('buyer', { ...snapshot, status: 5 }, 1000n), false);
+});
+
 test('blocks a changed signer and preserves the reviewed draft', () => {
   const buyerA = '0x0000000000000000000000000000000000000001';
   const buyerB = '0x0000000000000000000000000000000000000002';
@@ -233,4 +306,16 @@ test('rejected wallet transaction keeps the draft intact', () => {
   const failure = model.preserveDraftOnTransactionFailure(validDraft, 'Wallet request was cancelled.');
   assert.deepEqual(failure.draft, validDraft);
   assert.equal(failure.error, 'Wallet request was cancelled.');
+});
+
+
+test('deadline timeline begins without a nonexistent interval and formats later intervals safely', () => {
+  const deadlines = [1000n, 87400n, 173800n, 260200n];
+  assert.equal(model.deadlineGapLabel(deadlines, 0), undefined);
+  assert.equal(model.deadlineGapLabel(deadlines, 1), undefined);
+  assert.equal(model.deadlineGapLabel(deadlines, 2), '1D');
+  assert.equal(model.deadlineGapLabel(deadlines, 3), '1D');
+  assert.equal(model.deadlineGapLabel(deadlines, 4), '1D');
+  assert.equal(model.deadlineGapLabel(deadlines, 5), undefined);
+  assert.equal(model.deadlineGapLabel([100n, 90n], 2), undefined);
 });
