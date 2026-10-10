@@ -335,6 +335,7 @@ function App() {
   const ordersRef = useRef<EnrichedOrder[]>([]);
   const orderScanAccountRef = useRef<string | undefined>(undefined);
   const indexedWalletRef = useRef<string | undefined>(undefined);
+  const indexedThroughRef = useRef<bigint | undefined>(undefined);
   const orderScanCursorRef = useRef<bigint | undefined>(undefined);
   const orderScanFloorRef = useRef(ARC_DEPLOYMENT_BLOCK);
   const orderOldestScannedRef = useRef<bigint | undefined>(undefined);
@@ -358,6 +359,7 @@ function App() {
       orderScanRunningRef.current = false;
       orderScanAccountRef.current = undefined;
       indexedWalletRef.current = undefined;
+      indexedThroughRef.current = undefined;
       orderScanCursorRef.current = undefined;
       orderScanTipRef.current = undefined;
       orderScanFloorRef.current = ARC_DEPLOYMENT_BLOCK;
@@ -378,6 +380,7 @@ function App() {
       if (orderScanTimerRef.current) clearTimeout(orderScanTimerRef.current);
       orderScanAccountRef.current = accountKey;
       indexedWalletRef.current = undefined;
+      indexedThroughRef.current = undefined;
       orderScanCursorRef.current = undefined;
       orderScanTipRef.current = undefined;
       orderScanFloorRef.current = ARC_DEPLOYMENT_BLOCK;
@@ -408,6 +411,7 @@ function App() {
           }
           ordersRef.current = [...byOrder.values()].sort((a,b)=>Number((b.blockNumber ?? 0n)-(a.blockNumber ?? 0n)));
           indexedWalletRef.current = accountKey;
+          indexedThroughRef.current = history.indexedThrough;
           setOrders([...ordersRef.current]);
           setOrderReadProgress('Historical Arc factory events indexed through block ' + history.indexedThrough);
           // Status reads do not block discovery; the order detail verifies state.
@@ -431,7 +435,7 @@ function App() {
       if (orderScanCursorRef.current === undefined) {
         const latest = await retryOrderRead(() => orderScanClient.getBlockNumber());
         if (!stillCurrent()) return;
-        orderScanFloorRef.current = orderScanFinishedRef.current ? (orderScanTipRef.current ?? latest) + 1n : recentOrderFloor(latest, ARC_DEPLOYMENT_BLOCK);
+        orderScanFloorRef.current = orderScanFinishedRef.current ? (orderScanTipRef.current ?? latest) + 1n : (indexedThroughRef.current !== undefined ? indexedThroughRef.current + 1n : recentOrderFloor(latest, ARC_DEPLOYMENT_BLOCK));
         orderScanTipRef.current = latest;
         orderScanCursorRef.current = latest;
         orderScanFinishedRef.current = false;
@@ -510,6 +514,7 @@ function App() {
     orderScanRunningRef.current = false;
     orderScanAccountRef.current = undefined;
     indexedWalletRef.current = undefined;
+    indexedThroughRef.current = undefined;
     orderScanCursorRef.current = undefined;
     orderOldestScannedRef.current = undefined;
     orderScanFinishedRef.current = false;
