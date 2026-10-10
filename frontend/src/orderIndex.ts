@@ -86,3 +86,22 @@ export async function fetchWalletOrderIndex(wallet: string, factory: string, dep
   const raw: unknown = await response.json();
   return parseWalletOrderIndex(raw, wallet, factory, deploymentBlock);
 }
+
+/** Use the persisted factory block as a lookup hint for shared order links.
+ * The app still verifies the actual factory event and transaction onchain.
+ */
+export async function fetchIndexedOrderBlock(orderAddress: string, factory: string): Promise<bigint | undefined> {
+  const response = await fetch('/seldra-order-index.json', { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) throw new Error('Published order index unavailable');
+  const raw: unknown = await response.json();
+  if (!raw || typeof raw !== 'object') throw new Error('Order index unavailable');
+  const catalog = raw as Catalog;
+  if (catalog.version !== 1 || catalog.chainId !== 5042 ||
+    catalog.factory?.toLowerCase() !== factory.toLowerCase() || catalog.complete !== true ||
+    !Array.isArray(catalog.orders)) throw new Error('Order index is incomplete');
+  const match = catalog.orders.find(item => item.order?.toLowerCase() === orderAddress.toLowerCase());
+  if (!match) return undefined;
+  if (!Number.isSafeInteger(match.blockNumber) || match.blockNumber > catalog.indexedThrough)
+    throw new Error('Indexed order block is invalid');
+  return BigInt(match.blockNumber);
+}
