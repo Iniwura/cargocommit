@@ -195,7 +195,7 @@ export function buildCreatedOrderReceipt(order: Address, transactionHash: Hash):
 }
 
 export function orderAddressFromHash(hash: string): Address | undefined {
-  const match = hash.match(/^#(?:order|orders)\/(0x[0-9a-fA-F]{40})(?:\/)?(?:$|\?)/);
+  const match = hash.match(/^#(?:order|orders)\/(0x[0-9a-fA-F]{40})(?:\/\d+)?\/?(?:$|\?)/);
   return match?.[1] as Address | undefined;
 }
 
@@ -393,4 +393,36 @@ export function deadlineGapLabel(deadlines: readonly bigint[], timelineIndex: nu
   if (days && remaining) return `${days}D ${remaining}H`;
   if (days) return `${days}D`;
   return `${hours}H`;
+}
+
+/** A link block can accelerate factory lookup, but must be verified against factory logs. */
+export function orderBlockHintFromHash(hash: string): bigint | undefined {
+  const match = hash.match(/^#(?:order|orders)\/0x[0-9a-fA-F]{40}\/(\d+)(?:\/?(?:$|\?))/);
+  return match ? BigInt(match[1]) : undefined;
+}
+
+/** Validates onchain readback against an official factory OrderCreated log.
+ * A factory event alone is insufficient because the factory permits arbitrary buyer addresses.
+ */
+export type FactoryCreatedTerms = {
+  buyer: string; supplier: string; arbiter: string; orderAmount: bigint;
+  depositBps: number; fallbackSupplierBps: number;
+  fundingDeadline: bigint; shipmentDeadline: bigint; buyerDecisionDeadline: bigint; disputeDeadline: bigint;
+  termsHash: string;
+};
+export type OrderReadbackTerms = FactoryCreatedTerms & { accountingInvariant: boolean };
+export function factoryOriginMatches(created: FactoryCreatedTerms, originator: string, snapshot: OrderReadbackTerms): boolean {
+  return originator.toLowerCase() === created.buyer.toLowerCase()
+    && created.buyer.toLowerCase() === snapshot.buyer.toLowerCase()
+    && created.supplier.toLowerCase() === snapshot.supplier.toLowerCase()
+    && created.arbiter.toLowerCase() === snapshot.arbiter.toLowerCase()
+    && created.orderAmount === snapshot.orderAmount
+    && created.depositBps === snapshot.depositBps
+    && created.fallbackSupplierBps === snapshot.fallbackSupplierBps
+    && created.fundingDeadline === snapshot.fundingDeadline
+    && created.shipmentDeadline === snapshot.shipmentDeadline
+    && created.buyerDecisionDeadline === snapshot.buyerDecisionDeadline
+    && created.disputeDeadline === snapshot.disputeDeadline
+    && created.termsHash.toLowerCase() === snapshot.termsHash.toLowerCase()
+    && snapshot.accountingInvariant;
 }

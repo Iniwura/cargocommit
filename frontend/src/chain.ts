@@ -13,7 +13,7 @@ import {
 } from 'viem';
 import { FACTORY_ADDRESS, factoryAbi, orderAbi, type OrderCreatedLog } from './contracts';
 import { orderCreatedBlockRanges } from './logRanges';
-import { bpsToPercent } from './model';
+import { bpsToPercent, factoryOriginMatches } from './model';
 
 export { ORDER_LOG_CHUNK_SIZE, orderCreatedBlockRanges } from './logRanges';
 
@@ -270,3 +270,46 @@ export function isAddress(value: string): value is Address {
 }
 
 export { FACTORY_ADDRESS, factoryAbi, orderAbi };
+
+/** Only factory-emitted order addresses may trigger a Seldra wallet action.
+ * Buyer-origin also matters: createOrder itself permits third parties to name any buyer.
+ */
+export type FactoryOrderProof = { created: OrderCreatedLog; originator: Address; blockNumber: bigint; transactionHash: Hash };
+
+export async function verifyFactoryOrder(client: PublicClient, address: Address, blockHint?: bigint): Promise<FactoryOrderProof> {
+  const event = parseAbiItem('event OrderCreated(address indexed order,address indexed buyer,address indexed supplier,address arbiter,uint256 orderAmount,uint16 depositBps,uint16 fallbackSupplierBps,uint256 fundingDeadline,uint256 shipmentDeadline,uint256 buyerDecisionDeadline,uint256 disputeDeadline,bytes32 termsHash)');
+  const latest = await client.getBlockNumber();
+  // The optional link block is merely a lookup hint, NEVER proof on its own.
+  const first = blockHint !== undefined && blockHint >= ARC_DEPLOYMENT_BLOCK && blockHint <= latest
+    ? [[blockHint, blockHint] as const]
+    : [];
+  const remaining = orderCreatedBlockRanges(ARC_DEPLOYMENT_BLOCK, latest).reverse();
+  const ranges: Array<readonly [bigint, bigint]> = [...first, ...remaining.filter(([start, end]) => !first.length || start !== blockHint || end !== blockHint)];
+  for (const [fromBlock, toBlock] of ranges) {
+    const logs = await client.getLogs({ address: FACTORY_ADDRESS, event, args: { order: address }, fromBlock, toBlock } as never);
+    for (const item of logs) {
+      const log = item as unknown as { args: Record<string, unknown>; transactionHash: Hash | null; blockNumber: bigint | null };
+      if (!log.transactionHash || log.blockNumber === null || !log.args) continue;
+      if (String(log.args.order).toLowerCase() !== address.toLowerCase()) continue;
+      const tx = await client.getTransaction({ hash: log.transactionHash });
+      const args = log.args;
+      return {
+        created: {
+          order: address, buyer: args.buyer as Address, supplier: args.supplier as Address, arbiter: args.arbiter as Address,
+          orderAmount: args.orderAmount as bigint,
+          depositBps: bpsToPercent(args.depositBps as bigint), fallbackSupplierBps: bpsToPercent(args.fallbackSupplierBps as bigint),
+          fundingDeadline: args.fundingDeadline as bigint, shipmentDeadline: args.shipmentDeadline as bigint,
+          buyerDecisionDeadline: args.buyerDecisionDeadline as bigint, disputeDeadline: args.disputeDeadline as bigint,
+          termsHash: args.termsHash as `0x${string}`,
+          blockNumber: log.blockNumber, transactionHash: log.transactionHash,
+        },
+        originator: tx.from, blockNumber: log.blockNumber, transactionHash: log.transactionHash,
+      };
+    }
+  }
+  throw new Error('No matching OrderCreated event from the official Seldra factory.');
+}
+
+export function proofMatchesSnapshot(proof: FactoryOrderProof, snapshot: Awaited<ReturnType<typeof readOrderSnapshot>>): boolean {
+  return factoryOriginMatches(proof.created, proof.originator, snapshot);
+}

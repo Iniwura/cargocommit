@@ -77,3 +77,11 @@ npm run build
 - The contract and frontend have not received an independent production audit.
 
 See [SPEC.md](SPEC.md) for the lifecycle, accounting invariants and threat model, [SECURITY.md](SECURITY.md) for responsible disclosure, and [MAINNET_PROOF.md](MAINNET_PROOF.md) for reproducibility.
+
+## Security and trust model
+
+Seldra is **unaudited**. The deployed contracts have immutable roles, onchain state transitions, a non-reentrancy guard, accounting checks and bounded settlement paths, but these are not a substitute for an independent review.
+
+A buyer must act before the buyer-decision deadline after shipment evidence: otherwise the supplier can claim the protected balance by timeout. Shipment hashes do not prove physical delivery. The current factory also allows a third party to create an unsolicited order naming someone else's wallet; the frontend verifies factory origin **and** that the creating transaction came from the declared buyer before allowing writes. Direct contract callers do not benefit from that interface-only protection. A native-payment recipient that rejects transfers can block settlement, with no rescue function.
+
+Review all immutable addresses, percentages, deadlines and the full [security policy](SECURITY.md) before interacting. This remains an experimental technical demonstration, not a recommended system for real trade funds.
