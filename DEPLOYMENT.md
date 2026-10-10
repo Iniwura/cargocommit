@@ -1,6 +1,6 @@
 # CargoCommit deployment and demo checklist
 
-This document describes a controlled Arc rehearsal and a later tiny-value mainnet proof. It does not contain a private key, keystore password, or broadcasted CargoCommit transaction.
+This document preserves the original controlled deployment checklist. Actual Arc mainnet deployments and tiny-value transactions have since completed. Consult [MAINNET_PROOF.md](MAINNET_PROOF.md) for verified addresses, receipts and readbacks; do not rerun these historical deployment commands against mainnet. No credentials are included.
 
 ## Arc-specific local rehearsal
 
@@ -78,9 +78,9 @@ arc-cast estimate "$ARC_FACTORY_ADDRESS" \
 
 The required balance must cover factory deployment gas, order creation gas, all demo calls, the `1e18` native-USDC order funding, and a conservative margin for expected reverted protection calls. Arc gas is denominated in native USDC; do not use ERC-20 six-decimal values for `msg.value`.
 
-## Broadcast procedure — intentionally not executed in Phase 2
+## Historical broadcast procedure — completed for the documented mainnet deployment
 
-Only proceed after the read-only preflight and Arc-specific local rehearsal pass. The encrypted Foundry keystore is selected by name; the raw private key never appears in the command:
+These commands are retained as historical procedure, not instructions to redeploy Seldra. A new deployment would require separate authorization and validation. The encrypted Foundry keystore is selected by name; the raw private key never appears in the command:
 
 ```bash
 arc-forge script script/Deploy.s.sol:DeployCargoCommitFactory \

@@ -207,6 +207,23 @@ test('derives lifecycle next actions and action-required state from actual role 
   assert.equal(model.actionRequiredForRole('observer', { ...snapshot, status: 4 }, 4001n), true);
 });
 
+test('onchain timestamps prevent a cancelled order looking funded', () => {
+  const cancelled = { acceptedAt: 101n, fundedAt: 0n, shipmentSubmittedAt: 0n, status: 5, outcome: 1 };
+  assert.deepEqual(model.orderLifecycleMilestones(cancelled), [
+    ['TERMS CREATED', true],
+    ['SUPPLIER ACCEPTED', true],
+    ['ORDER FUNDED', false],
+    ['EVIDENCE SUBMITTED', false],
+    ['ORDER CANCELLED', true],
+  ]);
+  const refunded = { ...cancelled, fundedAt: 102n, status: 5, outcome: 2 };
+  assert.equal(model.orderLifecycleMilestones(refunded)[2][1], true);
+  assert.equal(model.orderLifecycleMilestones(refunded)[4][0], 'SHIPMENT REFUNDED');
+  const disputed = { ...refunded, shipmentSubmittedAt: 103n, status: 4, outcome: 0 };
+  assert.equal(model.orderLifecycleMilestones(disputed)[3][1], true);
+  assert.equal(model.orderLifecycleMilestones(disputed)[4][0], 'DISPUTE OPENED');
+});
+
 test('blocks a changed signer and preserves the reviewed draft', () => {
   const buyerA = '0x0000000000000000000000000000000000000001';
   const buyerB = '0x0000000000000000000000000000000000000002';

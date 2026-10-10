@@ -235,6 +235,25 @@ export function nextActionForRole(role: Role, snapshot?: ActionSnapshot, now = B
   return statusLabel(snapshot.status).toUpperCase();
 }
 
+/** Timestamps are authoritative: terminal CANCELLED does not mean money was funded. */
+export function orderLifecycleMilestones(snapshot: {
+  acceptedAt: bigint; fundedAt: bigint; shipmentSubmittedAt: bigint;
+  status: number; outcome: number;
+}): readonly (readonly [string, boolean])[] {
+  const terminal = snapshot.status === 4 ? 'DISPUTE OPENED'
+    : snapshot.outcome === 1 ? 'ORDER CANCELLED'
+    : snapshot.outcome === 2 ? 'SHIPMENT REFUNDED'
+    : snapshot.outcome === 4 || snapshot.outcome === 5 ? 'DISPUTE RESOLVED'
+    : 'SETTLED / RESOLVED';
+  return [
+    ['TERMS CREATED', true],
+    ['SUPPLIER ACCEPTED', snapshot.acceptedAt > 0n],
+    ['ORDER FUNDED', snapshot.fundedAt > 0n],
+    ['EVIDENCE SUBMITTED', snapshot.shipmentSubmittedAt > 0n],
+    [terminal, snapshot.status === 4 || snapshot.status === 5],
+  ] as const;
+}
+
 export function actionRequiredForRole(role: Role, snapshot: ActionSnapshot | undefined, now = BigInt(Math.floor(Date.now() / 1000))): boolean {
   return ['CANCEL EXPIRED ORDER', 'ACCEPT ORDER', 'FUND ORDER', 'SUBMIT EVIDENCE', 'CLAIM REFUND', 'APPROVE OR DISPUTE', 'CLAIM TIMEOUT', 'RESOLVE DISPUTE', 'CLAIM FALLBACK'].includes(nextActionForRole(role, snapshot, now));
 }

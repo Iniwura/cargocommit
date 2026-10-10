@@ -2,7 +2,7 @@
 
 ## Fund the order once. Release payment as the shipment becomes real.
 
-Seldra is a programmable supplier-order settlement product for importers. A buyer funds the full purchase order, the supplier receives the agreed production deposit, and the remaining balance stays visible and protected in an immutable Arc order contract until shipment approval or a bounded dispute path.
+Seldra is a programmable supplier-order settlement product for importers. A buyer funds the full purchase order, the supplier receives the agreed production deposit, and the remaining balance stays in an immutable Arc order contract. The buyer can approve release or dispute submitted evidence before the decision deadline; if the buyer does neither, the supplier can claim the reserve after that deadline.
 
 This is not a generic escrow, crypto wallet, FX product, invoice system, lending product, bank, or marketplace. It is experimental settlement infrastructure, not audited production software.
 

@@ -239,6 +239,7 @@ export async function readOrderSnapshot(client: PublicClient, address: Address) 
     'buyer', 'supplier', 'arbiter', 'orderAmount', 'depositAmount', 'reserveAmount', 'depositBps',
     'fallbackSupplierBps', 'fundingDeadline', 'shipmentDeadline', 'buyerDecisionDeadline', 'disputeDeadline',
     'termsHash', 'status', 'outcome', 'reserveRemaining', 'shipmentEvidenceHash', 'disputeReasonHash', 'accountingInvariant',
+    'acceptedAt', 'fundedAt', 'shipmentSubmittedAt',
   ] as const;
   const values = await Promise.all(functionNames.map((functionName) => client.readContract({ address, abi: orderAbi, functionName } as never)));
   return {
@@ -261,6 +262,9 @@ export async function readOrderSnapshot(client: PublicClient, address: Address) 
     shipmentEvidenceHash: values[16] as `0x${string}`,
     disputeReasonHash: values[17] as `0x${string}`,
     accountingInvariant: Boolean(values[18]),
+    acceptedAt: values[19] as bigint,
+    fundedAt: values[20] as bigint,
+    shipmentSubmittedAt: values[21] as bigint,
     contractBalance: await client.getBalance({ address }),
   };
 }
