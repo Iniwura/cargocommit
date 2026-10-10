@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "chainId": 5042,
+  "factory": "0x934159c33c25d0b2e27b237b4ca603d85f019cf3",
+  "indexedThrough": 25272367,
+  "complete": true,
+  "generatedAt": "2026-10-10T16:53:14.958Z",
+  "orders": [
+    {
+      "order": "0x7be2440da225495735957b4b206a4ab4998372fa",
+      "buyer": "0xd0dd02322af812fc0dbddc69f9a055fbbe2c6673",
+      "supplier": "0x62050fc83a8d0039c089cecf9340cfe92f87b76c",
+      "arbiter": "0x4b953a840f79d9b487a748b0fd168010c89fc2ae",
+      "orderAmount": "10000000000000000",
+      "depositBps": 30,
+      "fallbackSupplierBps": 50,
+      "fundingDeadline": "1791457200",
+      "shipmentDeadline": "1791543600",
+      "buyerDecisionDeadline": "1791630000",
+      "disputeDeadline": "1791716400",
+      "termsHash": "0x0471709599525597126897a28b5b06d5effc6d673533e1c64a243dc5c7d1918d",
+      "transactionHash": "0x6b2ce2c5d43f5a68aca384bae810aefd2aa0fd6962a2d4f211c4bf7ce267137b",
+      "blockNumber": 24754291
+    },
+    {
+      "order": "0x6ff65de6016d9e1083b2f7d7e3abaff1ab2c9201",
+      "buyer": "0x5c526d2c665147fab7849353dc65970879379bb2",
+      "supplier": "0x62050fc83a8d0039c089cecf9340cfe92f87b76c",
+      "arbiter": "0x4b953a840f79d9b487a748b0fd168010c89fc2ae",
+      "orderAmount": "10000000000000000",
+      "depositBps": 30,
+      "fallbackSupplierBps": 50,
+      "fundingDeadline": "1791302340",
+      "shipmentDeadline": "1791305940",
+      "buyerDecisionDeadline": "1791309540",
+      "disputeDeadline": "1791313140",
+      "termsHash": "0x598fc3b6d3f0488987522510f4cde3d2f20505e624b1c45720d39186b992a19c",
+      "transactionHash": "0xd04bcb536bd3668483ac0c4a6c042fed6bfd1c3e93d948ce34a10d218e368af8",
+      "blockNumber": 24578118
+    },
+    {
+      "order": "0x60958fd86d2d52670181afb4097d1b280a37848c",
+      "buyer": "0x5c526d2c665147fab7849353dc65970879379bb2",
+      "supplier": "0x62050fc83a8d0039c089cecf9340cfe92f87b76c",
+      "arbiter": "0x2000000000000000000000000000000000000002",
+      "orderAmount": "1000000000000000000",
+      "depositBps": 30,
+      "fallbackSupplierBps": 50,
+      "fundingDeadline": "1900000000",
+      "shipmentDeadline": "1900001000",
+      "buyerDecisionDeadline": "1900002000",
+      "disputeDeadline": "1900003000",
+      "termsHash": "0xeb8c535f936d6acee8d00c29110523d90c3fd1483d9f3f91beeb83b513cc01f8",
+      "transactionHash": "0xd3cced0fbb37663b8aef4ede48b885e25c559ee09ca6ca5452790d01a5bd9e96",
+      "blockNumber": 24575647
+    }
+  ]
+}
