@@ -47,3 +47,13 @@ test('complete activity archive includes real settlement and dispute receipts', 
   assert.ok(dispute?.some(item => item.label === 'SETTLED'));
   assert.deepEqual(unfunded, []);
 });
+
+test('unsolicited factory orders never appear as buyer-authorized purchase orders', () => {
+  const wallet = '0xd0dd02322AF812fC0dbDdC69f9a055FBBe2C6673';
+  const fake = { ...catalog, orders: catalog.orders.map(order => order.buyer.toLowerCase() === wallet.toLowerCase()
+    ? { ...order, originator: '0x0000000000000000000000000000000000000001' } : order) };
+  assert.equal(parseWalletOrderIndex(fake, wallet, factory, deployment).orders.length, 0);
+  assert.throws(() => parseWalletOrderIndex({
+    ...catalog, orders: catalog.orders.map(order => ({ ...order, originator: undefined })),
+  }, wallet, factory, deployment), /Malformed indexed order address/);
+});
