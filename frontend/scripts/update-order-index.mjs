@@ -153,6 +153,20 @@ async function main() {
     await wait(300);
   }
   const orders = [...seen.values()].sort((a,b)=>b.blockNumber-a.blockNumber || a.order.localeCompare(b.order));
+  // Factories emit buyer addresses supplied by the caller, not signer proofs.
+  // Persist the transaction sender so the public UI never treats an
+  // unsolicited order as an authenticated buyer-created purchase order.
+  let originatorChanges = 0;
+  for (const order of orders) {
+    if (order.originator !== undefined) {
+      lowerAddress(order.originator);
+      continue;
+    }
+    const tx = await rpc('eth_getTransactionByHash', [order.transactionHash]);
+    if (!tx || lowerAddress(tx.to) !== FACTORY) throw new Error('Order creation transaction does not target factory');
+    order.originator = lowerAddress(tx.from);
+    originatorChanges++;
+  }
   const activity = {};
   const previousActivity = valid && previous.activity && typeof previous.activity === 'object' ? previous.activity : {};
   const addresses = orders.map(item => item.order);
@@ -191,7 +205,7 @@ async function main() {
     activityIndexedThrough = tip;
   }
   for (const list of Object.values(activity)) list.sort((a,b)=>a.blockNumber-b.blockNumber || a.logIndex-b.logIndex);
-  if (valid && !additions && !newActivity && indexedThrough - previous.indexedThrough < MIN_INDEX_PROGRESS &&
+  if (valid && !additions && !newActivity && !originatorChanges && indexedThrough - previous.indexedThrough < MIN_INDEX_PROGRESS &&
     activityIndexedThrough - (previous.activityIndexedThrough ?? DEPLOYED - 1) < MIN_INDEX_PROGRESS) {
     console.log('No new factory or lifecycle events; preserving deployed index, tip', tip);
     return;
