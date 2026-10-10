@@ -201,6 +201,7 @@ export function orderAddressFromHash(hash: string): Address | undefined {
 
 export type ActionSnapshot = {
   status: number;
+  fundingDeadline?: bigint;
   shipmentDeadline: bigint;
   buyerDecisionDeadline: bigint;
   disputeDeadline: bigint;
@@ -209,9 +210,18 @@ export type ActionSnapshot = {
 export function nextActionForRole(role: Role, snapshot?: ActionSnapshot, now = BigInt(Math.floor(Date.now() / 1000))): string {
   if (!snapshot) return 'READING STATE';
   if (snapshot.status === 5) return 'SETTLED';
-  if (snapshot.status === 0) return role === 'supplier' ? 'ACCEPT ORDER' : role === 'buyer' ? 'WAITING FOR ACCEPTANCE' : 'SUPPLIER ACCEPTS';
-  if (snapshot.status === 1) return role === 'buyer' ? 'FUND ORDER' : role === 'supplier' ? 'WAITING FOR FUNDING' : 'BUYER FUNDS';
-  if (snapshot.status === 2) return role === 'supplier' ? 'SUBMIT EVIDENCE' : role === 'buyer' && now > snapshot.shipmentDeadline ? 'CLAIM REFUND' : 'SHIPMENT EVIDENCE';
+  if (snapshot.status === 0) {
+    if (snapshot.fundingDeadline !== undefined && now > snapshot.fundingDeadline) return role === 'buyer' ? 'CANCEL EXPIRED ORDER' : 'FUNDING EXPIRED';
+    return role === 'supplier' ? 'ACCEPT ORDER' : role === 'buyer' ? 'WAITING FOR ACCEPTANCE' : 'SUPPLIER ACCEPTS';
+  }
+  if (snapshot.status === 1) {
+    if (snapshot.fundingDeadline !== undefined && now > snapshot.fundingDeadline) return role === 'buyer' ? 'CANCEL EXPIRED ORDER' : 'FUNDING EXPIRED';
+    return role === 'buyer' ? 'FUND ORDER' : role === 'supplier' ? 'WAITING FOR FUNDING' : 'BUYER FUNDS';
+  }
+  if (snapshot.status === 2) {
+    if (now > snapshot.shipmentDeadline) return role === 'buyer' ? 'CLAIM REFUND' : 'SHIPMENT DEADLINE PASSED';
+    return role === 'supplier' ? 'SUBMIT EVIDENCE' : 'SHIPMENT EVIDENCE';
+  }
   if (snapshot.status === 3) {
     if (role === 'buyer') return now <= snapshot.buyerDecisionDeadline ? 'APPROVE OR DISPUTE' : 'SUPPLIER TIMEOUT';
     if (role === 'supplier') return now > snapshot.buyerDecisionDeadline ? 'CLAIM TIMEOUT' : 'WAITING FOR BUYER';
@@ -226,7 +236,7 @@ export function nextActionForRole(role: Role, snapshot?: ActionSnapshot, now = B
 }
 
 export function actionRequiredForRole(role: Role, snapshot: ActionSnapshot | undefined, now = BigInt(Math.floor(Date.now() / 1000))): boolean {
-  return ['ACCEPT ORDER', 'FUND ORDER', 'SUBMIT EVIDENCE', 'CLAIM REFUND', 'APPROVE OR DISPUTE', 'CLAIM TIMEOUT', 'RESOLVE DISPUTE', 'CLAIM FALLBACK'].includes(nextActionForRole(role, snapshot, now));
+  return ['CANCEL EXPIRED ORDER', 'ACCEPT ORDER', 'FUND ORDER', 'SUBMIT EVIDENCE', 'CLAIM REFUND', 'APPROVE OR DISPUTE', 'CLAIM TIMEOUT', 'RESOLVE DISPUTE', 'CLAIM FALLBACK'].includes(nextActionForRole(role, snapshot, now));
 }
 
 export function buildCreateOrderReview(input: CreateOrderReview): CreateOrderReview {

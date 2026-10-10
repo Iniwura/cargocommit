@@ -85,3 +85,7 @@ Seldra is **unaudited**. The deployed contracts have immutable roles, onchain st
 A buyer must act before the buyer-decision deadline after shipment evidence: otherwise the supplier can claim the protected balance by timeout. Shipment hashes do not prove physical delivery. The current factory also allows a third party to create an unsolicited order naming someone else's wallet; the frontend verifies factory origin **and** that the creating transaction came from the declared buyer before allowing writes. Direct contract callers do not benefit from that interface-only protection. A native-payment recipient that rejects transfers can block settlement, with no rescue function.
 
 Review all immutable addresses, percentages, deadlines and the full [security policy](SECURITY.md) before interacting. This remains an experimental technical demonstration, not a recommended system for real trade funds.
+
+## Wallet order history
+
+The order register uses a public catalog of onchain `OrderCreated` events to discover buyer, supplier and arbiter orders without scanning the entire Arc chain from each browser. Its source is `frontend/scripts/update-order-index.mjs` and its published cursor is `frontend/public/seldra-order-index.json`. The index may lag new blocks; recent events are queried from RPC and every wallet action rechecks the actual onchain factory proof and immutable order terms. The catalog is for discovery, not an authorization or custody database.

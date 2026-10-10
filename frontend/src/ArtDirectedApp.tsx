@@ -471,7 +471,9 @@ function App() {
         },
       });
       if (!stillCurrent()) return;
-      orderScanCursorRef.current = result.cursor;
+      // A completed window must reset the cursor. Otherwise a later Refresh
+      // keeps scanning the already-finished range and never finds new orders.
+      orderScanCursorRef.current = result.completed ? undefined : result.cursor;
       orderScanFinishedRef.current = result.completed;
       setOrderReadState(result.completed ? 'success' : 'partial');
       setOrderReadProgress(result.completed
