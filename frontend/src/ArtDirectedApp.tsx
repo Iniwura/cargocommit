@@ -7,10 +7,11 @@ import CreateOrder from './CreateOrderFlow';
 import { OrderDetail, OrdersPage } from './OrderExperience';
 import { FeedbackNotice } from './FeedbackNotice';
 import { productErrorText } from './feedback';
+import { retryOrderRead, scanOrderPage } from './orderDiscovery';
 
 type View = 'home' | 'proof' | 'create' | 'orders';
 type Snapshot = Awaited<ReturnType<typeof readOrderSnapshot>>;
-type EnrichedOrder = OrderCreatedLog & { snapshot?: Snapshot };
+type EnrichedOrder = OrderCreatedLog & { snapshot?: Snapshot; previewStatus?: number };
 type OrderFilter = 'all' | 'active' | 'awaiting' | 'settled';
 type TransactionStage = 'idle' | 'preparing' | 'signing' | 'submitted' | 'confirming' | 'success';
 
@@ -289,7 +290,7 @@ export function LegacyCreateOrder({ account, walletClient, walletProvider, onCre
   return <main className="page-shell page-content-v2 create-page-v2"><div className="document-heading"><div><SectionMark index="NEW TRADE ORDER" label="COMMERCIAL DOCUMENT" /><h1>SD / PO / 2026 / <span>0043</span></h1></div><div className="document-heading-meta"><span>FACTORY</span><a href={explorerAddress(FACTORY_ADDRESS)} target="_blank" rel="noreferrer">{shortenAddress(FACTORY_ADDRESS, 10, 8)} ↗</a><span>NETWORK / ARC 5042</span></div></div><div className="composer-progress" aria-label="Order composer progress">{phases.map(([number, label, complete], index) => <button type="button" className={`${activePhase === index + 1 ? 'active ' : ''}${complete ? 'complete' : ''}`} onClick={() => jumpToPhase(index + 1)} key={number}><span>{number}</span><strong>{label}</strong><i aria-hidden="true" /></button>)}</div><div className="create-document-layout composer-layout"><form className="trade-form-v2 composer-form" onSubmit={create}><section id="composer-phase-1" className={`composer-phase ${activePhase === 1 ? 'active' : ''}`}><div className="form-block-label">01 / PARTIES</div><div className="party-composition"><div className="party-card buyer-card"><PartyGlyph address={account} /><span className="party-role">BUYER / IMPORTER</span><strong>{account ? shortenAddress(account) : 'Connect wallet'}</strong><small>Connected wallet / order originator</small><PartyStatus value={account ?? ''} account={undefined} label="BUYER" /></div><div className="funded-order-label"><span>FUNDED ORDER</span><i /></div><div className="party-card"><PartyGlyph address={supplier} /><span className="party-role">SUPPLIER / EXPORTER</span><input aria-label="Supplier wallet address" value={supplier} onChange={(e) => setSupplier(e.target.value.trim())} placeholder="0x supplier address" /><small>Receives the production release.</small><PartyStatus value={supplier} account={account} label="SUPPLIER" /></div><div className="party-card"><PartyGlyph address={arbiter} /><span className="party-role">ARBITER</span><input aria-label="Arbiter wallet address" value={arbiter} onChange={(e) => setArbiter(e.target.value.trim())} placeholder="0x arbiter address" /><small>Resolves only a disputed reserve.</small><PartyStatus value={arbiter} account={account} label="ARBITER" /></div></div></section><section id="composer-phase-2" className={`composer-phase ${activePhase === 2 ? 'active' : ''}`}><div className="form-block-label">02 / SETTLEMENT</div><div className="field-grid-v2"><Field label="Order amount"><div className="input-unit-v2"><input inputMode="decimal" value={amountFocused ? amount : formatInputAmount(amount)} onFocus={() => setAmountFocused(true)} onBlur={() => setAmountFocused(false)} onChange={(e) => setAmount(e.target.value.replaceAll(',', ''))} /><span>USDC</span></div></Field><Field label="Fallback supplier share if dispute expires"><div className="input-unit-v2"><input inputMode="numeric" min="0" max="100" value={fallbackBps} onChange={(e) => setFallbackBps(e.target.value.replace(/\D/g, '').slice(0, 3))} /><span>%</span></div></Field></div><div className="split-editor"><div className="split-editor-head"><span>RELEASE AT FUNDING</span><strong>{split.depositBps}%</strong><span>PROTECTED</span><strong>{split.reserveBps}%</strong></div><input aria-label="Production deposit percentage" type="range" min="1" max="99" value={Number(depositBps) || 1} onChange={(e) => setDepositBps(e.target.value)} /><div className="split-quick-choices">{['20', '30', '40', '50'].map((value) => <button type="button" className={depositBps === value ? 'active' : ''} onClick={() => setDepositBps(value)} key={value}>{value} / {100 - Number(value)}</button>)}</div><SettlementBar depositAmount={deposit} reserveAmount={reserve} depositPercent={split.depositBps} /></div><details className="fallback-explainer"><summary>How fallback settlement works</summary><p>If the dispute window expires without an arbiter resolution, the contract pays the supplier {fallbackBps}% of the remaining reserve and returns {100 - (Number(fallbackBps) || 0)}% to the buyer.</p></details></section><section id="composer-phase-3" className={`composer-phase ${activePhase === 3 ? 'active' : ''}`}><div className="form-block-label">03 / DELIVERY</div><div className="delivery-timeline"><div><span>NOW</span><i>│</i></div><div><span>FUND BY</span><b>{dateLabel(fundingDeadline)}</b><i>│</i></div><div><span>SHIP BY</span><b>{dateLabel(shipmentDeadline)}</b><i>│</i></div><div><span>FALLBACK / DISPUTE WINDOW</span><b>{dateLabel(disputeDeadline)}</b></div></div><div className="field-grid-v2"><Field label="Funding deadline"><input type="datetime-local" value={fundingDeadline} onChange={(e) => setFundingDeadline(e.target.value)} /></Field><Field label="Shipment deadline"><input type="datetime-local" value={shipmentDeadline} onChange={(e) => setShipmentDeadline(e.target.value)} /></Field><Field label="Buyer decision deadline"><input type="datetime-local" value={decisionDeadline} onChange={(e) => setDecisionDeadline(e.target.value)} /></Field><Field label="Dispute resolution deadline"><input type="datetime-local" value={disputeDeadline} onChange={(e) => setDisputeDeadline(e.target.value)} /></Field></div>{!deadlinesReady && <p className="inline-validation">Funding, shipment, buyer decision and dispute deadlines must move forward in that order.</p>}</section><section id="composer-phase-4" className={`composer-phase ${activePhase === 4 ? 'active' : ''}`}><div className="form-block-label">04 / COMMITMENT</div><div className="commitment-copy"><span>COMMERCIAL TERMS</span><p>Documents stay offchain. The arbitrary local reference below is not uploaded or anchored. The deployed factory derives the onchain <code>termsHash</code> from the immutable parties, amount, split and deadlines only.</p></div><Field label="Purchase order reference"><input value={poReference} onChange={(e) => setPoReference(e.target.value)} placeholder="PO-2048 / internal reference" /></Field><Field label="Local document reference"><input value={documentCommitment} onChange={(e) => setDocumentCommitment(e.target.value)} placeholder="Internal fingerprint or reference text" /><small className="field-hint-v2">Retained locally for this device; it is not passed to the factory ABI and does not affect the onchain termsHash.</small></Field></section><section id="composer-phase-5" className={`composer-phase review-phase ${activePhase === 5 ? 'active' : ''}`}><div className="form-block-label">05 / REVIEW PURCHASE ORDER</div><div className="review-document"><div className="review-document-top"><span>SD / PO / 2026 / 0043</span><DocumentStamp tone={ready ? 'signal' : 'ink'}>{ready ? 'READY TO CREATE' : 'DRAFT'}</DocumentStamp></div><div className="review-total"><span>TOTAL</span><strong>{money(total)}</strong></div><div className="review-grid"><div><span>RELEASE AT FUNDING / {split.depositBps}%</span><strong>{money(deposit)}</strong></div><div><span>PROTECTED / {split.reserveBps}%</span><strong>{money(reserve)}</strong></div><div><span>SUPPLIER</span><strong>{isAddress(supplier) ? shortenAddress(supplier) : 'NOT SET'}</strong></div><div><span>ARBITER</span><strong>{isAddress(arbiter) ? shortenAddress(arbiter) : 'NOT SET'}</strong></div><div><span>FUND BY</span><strong>{dateLabel(fundingDeadline)}</strong></div><div><span>SHIP BY</span><strong>{dateLabel(shipmentDeadline)}</strong></div><div><span>LOCAL PO REFERENCE</span><strong>{poReference || 'NOT SET'}</strong></div><div><span>ONCHAIN TERMS COMMITMENT</span><strong>DERIVED FROM IMMUTABLE TERMS</strong></div></div></div><ReviewArgumentSummary review={review} poReference={poReference} />{reviewChanged && <div className="form-alert-v2 error wallet-changed-alert"><strong>WALLET CHANGED</strong><span>Your active wallet changed from: {reviewedBuyer ?? 'NOT SET'}</span><span>to: {account ?? 'NOT CONNECTED'}</span><button type="button" className="quiet-button" onClick={() => jumpToPhase(5)}>Review updated order</button></div>}{error && <div className="form-alert-v2 error">{error}</div>}{message && <div className="form-alert-v2 success">{message}</div>}{statusMessage && <div className="transaction-rail"><StatusDot active={stage === 'success'} /><span>{statusMessage}</span></div>}{stage === 'success' && success ? <div className="creation-success"><DocumentStamp>PURCHASE ORDER CREATED</DocumentStamp><p>{success.order}</p><div><TxLink hash={success.hash}>View transaction {shortenAddress(success.hash)}</TxLink><a href={explorerAddress(success.order)} target="_blank" rel="noreferrer">View order ↗</a></div><button type="button" className="quiet-button" onClick={() => onCreated(success.order, success.hash)}>View order workspace</button><button type="button" className="secondary-button" onClick={() => { setSuccess(undefined); setStage('idle'); setMessage(''); setError(''); setActivePhase(1); }}>Create another</button></div> : <button type="submit" className="primary-button form-submit-v2" disabled={busy || !ready || reviewBlocked}>{busy ? statusMessage || 'Preparing order…' : 'Create order on Arc'}<span>↗</span></button>}</section></form><SettlementSheet total={total} deposit={deposit} reserve={reserve} depositPercent={split.depositBps} reservePercent={split.reserveBps} fallbackBps={fallbackBps} supplier={supplier} arbiter={arbiter} fundingDeadline={fundingDeadline} shipmentDeadline={shipmentDeadline} documentCommitment={documentCommitment} ready={ready} missing={missing} stage={stage} /></div></main>;
 }
 
-type OrderReadState = 'idle' | 'loading' | 'success' | 'error';
+type OrderReadState = 'idle' | 'loading' | 'partial' | 'success' | 'error';
 
 export function LegacyOrdersPage({ account, orders, selected, onSelect, onRefresh, onConnect, onCreate, loading, readState, readError }: { account?: Address; orders: EnrichedOrder[]; selected?: Address; onSelect: (order: Address) => void; onRefresh: () => void; onConnect: () => void; onCreate: () => void; loading: boolean; readState: OrderReadState; readError: string }) {
   const [filter, setFilter] = useState<OrderFilter>('all');
@@ -323,16 +324,138 @@ function RoleLine({ label, address, current }: { label: string; address: string;
 function ActionButton({ children, onClick, busy, disabled = false, secondary = false }: { children: React.ReactNode; onClick: () => void; busy: boolean; disabled?: boolean; secondary?: boolean }) { return <button type="button" className={secondary ? 'secondary-button action-button-v2' : 'primary-button action-button-v2'} onClick={onClick} disabled={busy || disabled}>{busy ? 'Waiting for receipt…' : children}</button>; }
 
 function App() {
-  const [view, setView] = useState<View>(() => typeof window === 'undefined' ? 'home' : viewFromHash(window.location.hash)); const [account, setAccount] = useState<Address>(); const [walletClient, setWalletClient] = useState<WalletClient>(); const [walletProvider, setWalletProvider] = useState<Eip1193Provider>(); const [orders, setOrders] = useState<EnrichedOrder[]>([]); const [selectedOrder, setSelectedOrder] = useState<Address | undefined>(() => typeof window === 'undefined' ? undefined : orderFromHash(window.location.hash)); const [connectionError, setConnectionError] = useState(''); const ordersRef = useRef<EnrichedOrder[]>([]); const orderScanAccountRef = useRef<string | undefined>(undefined); const orderScanBlockRef = useRef<bigint | undefined>(undefined); const [loadingOrders, setLoadingOrders] = useState(false); const [orderReadState, setOrderReadState] = useState<OrderReadState>('idle'); const [orderReadError, setOrderReadError] = useState('');
- const refreshOrders = useCallback(async (connectedAccount = account) => { if (!connectedAccount) { ordersRef.current = []; orderScanAccountRef.current = undefined; orderScanBlockRef.current = undefined; setOrders([]); setOrderReadState('idle'); setOrderReadError(''); return; } const accountKey = connectedAccount.toLowerCase(); if (orderScanAccountRef.current !== accountKey) { ordersRef.current = []; orderScanBlockRef.current = undefined; orderScanAccountRef.current = accountKey; setOrders([]); } setLoadingOrders(true); setOrderReadState('loading'); setOrderReadError(''); try { const latest = await publicClient.getBlockNumber(); const fromBlock = orderScanBlockRef.current === undefined ? ARC_DEPLOYMENT_BLOCK : orderScanBlockRef.current + 1n; const logs = fromBlock <= latest ? await fetchOrderCreatedLogs(publicClient, { fromBlock, toBlock: latest }) : []; orderScanBlockRef.current = latest; const byOrder = new Map<string, EnrichedOrder>(ordersRef.current.map((log) => [log.order.toLowerCase(), log])); const relatedNew = logs.filter((log) => [log.buyer, log.supplier, log.arbiter].some((address) => address.toLowerCase() === accountKey)); const enriched = await Promise.all(relatedNew.map(async (log) => { try { return { ...log, snapshot: await readOrderSnapshot(publicClient, log.order) }; } catch { return log; } })); enriched.forEach((log) => byOrder.set(log.order.toLowerCase(), log)); const related = Array.from(byOrder.values()).filter((log) => [log.buyer, log.supplier, log.arbiter].some((address) => address.toLowerCase() === accountKey)).sort((left, right) => Number((right.blockNumber ?? 0n) - (left.blockNumber ?? 0n))); ordersRef.current = related; setOrders(related); setOrderReadState('success'); } catch (e) { setOrderReadState('error'); setOrderReadError(errorMessage(e)); } finally { setLoadingOrders(false); } }, [account]);
+   const [view, setView] = useState<View>(() => typeof window === 'undefined' ? 'home' : viewFromHash(window.location.hash));
+  const [account, setAccount] = useState<Address>();
+  const [walletClient, setWalletClient] = useState<WalletClient>();
+  const [walletProvider, setWalletProvider] = useState<Eip1193Provider>();
+  const [orders, setOrders] = useState<EnrichedOrder[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<Address | undefined>(() => typeof window === 'undefined' ? undefined : orderFromHash(window.location.hash));
+  const [connectionError, setConnectionError] = useState('');
+  const ordersRef = useRef<EnrichedOrder[]>([]);
+  const orderScanAccountRef = useRef<string | undefined>(undefined);
+  const orderScanCursorRef = useRef<bigint | undefined>(undefined);
+  const orderScanFloorRef = useRef(ARC_DEPLOYMENT_BLOCK);
+  const orderScanTipRef = useRef<bigint | undefined>(undefined);
+  const orderScanFinishedRef = useRef(false);
+  const orderScanGenerationRef = useRef(0);
+  const orderScanRunningRef = useRef(false);
+  const orderScanTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [orderReadState, setOrderReadState] = useState<OrderReadState>('idle');
+  const [orderReadError, setOrderReadError] = useState('');
+  const [orderReadProgress, setOrderReadProgress] = useState('');
+
+  const refreshOrders = useCallback(async (connectedAccount = account) => {
+    if (!connectedAccount) {
+      orderScanGenerationRef.current += 1;
+      if (orderScanTimerRef.current) clearTimeout(orderScanTimerRef.current);
+      orderScanRunningRef.current = false;
+      orderScanAccountRef.current = undefined;
+      orderScanCursorRef.current = undefined;
+      orderScanTipRef.current = undefined;
+      orderScanFloorRef.current = ARC_DEPLOYMENT_BLOCK;
+      orderScanFinishedRef.current = false;
+      ordersRef.current = [];
+      setOrders([]);
+      setLoadingOrders(false);
+      setOrderReadState('idle');
+      setOrderReadError('');
+      setOrderReadProgress('');
+      return;
+    }
+    const accountKey = connectedAccount.toLowerCase();
+    if (orderScanAccountRef.current !== accountKey) {
+      orderScanGenerationRef.current += 1;
+      orderScanRunningRef.current = false;
+      if (orderScanTimerRef.current) clearTimeout(orderScanTimerRef.current);
+      orderScanAccountRef.current = accountKey;
+      orderScanCursorRef.current = undefined;
+      orderScanTipRef.current = undefined;
+      orderScanFloorRef.current = ARC_DEPLOYMENT_BLOCK;
+      orderScanFinishedRef.current = false;
+      ordersRef.current = [];
+      setOrders([]);
+    }
+    if (orderScanRunningRef.current) return;
+    if (orderScanTimerRef.current) clearTimeout(orderScanTimerRef.current);
+    const generation = orderScanGenerationRef.current;
+    const stillCurrent = () => generation === orderScanGenerationRef.current && orderScanAccountRef.current === accountKey;
+    orderScanRunningRef.current = true;
+    setLoadingOrders(true);
+    setOrderReadError('');
+    setOrderReadState(ordersRef.current.length ? 'partial' : 'loading');
+    try {
+      if (orderScanCursorRef.current === undefined) {
+        const latest = await retryOrderRead(() => publicClient.getBlockNumber());
+        if (!stillCurrent()) return;
+        if (orderScanFinishedRef.current) orderScanFloorRef.current = (orderScanTipRef.current ?? latest) + 1n;
+        orderScanTipRef.current = latest;
+        orderScanCursorRef.current = latest;
+        orderScanFinishedRef.current = false;
+      }
+      const result = await scanOrderPage({
+        cursor: orderScanCursorRef.current,
+        firstBlock: orderScanFloorRef.current,
+        read: (fromBlock, toBlock) => { if (!stillCurrent()) throw new Error('Order scan cancelled'); return fetchOrderCreatedLogs(publicClient, { fromBlock, toBlock }); },
+        onWindow: async (logs, fromBlock) => {
+          if (!stillCurrent()) return;
+          // Save each successful window, not just each page, so retries never restart it.
+          orderScanCursorRef.current = fromBlock - 1n;
+          const matched = logs.filter((log) => [log.buyer, log.supplier, log.arbiter].some((address) => address.toLowerCase() === accountKey));
+          if (matched.length) {
+            const byOrder = new Map<string, EnrichedOrder>(ordersRef.current.map((order) => [order.order.toLowerCase(), order]));
+            for (const log of matched) { const previous = byOrder.get(log.order.toLowerCase()); byOrder.set(log.order.toLowerCase(), { ...log, snapshot: previous?.snapshot, previewStatus: previous?.previewStatus }); }
+            // Discovery must not depend on 20 independent snapshot reads per order.
+            ordersRef.current = [...byOrder.values()].sort((a, b) => Number((b.blockNumber ?? 0n) - (a.blockNumber ?? 0n)));
+            setOrders(ordersRef.current);
+            // Lightweight status reads keep the register useful without 20 RPCs per order.
+            // Detail view loads and independently verifies the complete onchain snapshot.
+            for (const log of matched.slice(0, 3)) {
+              try {
+                const status = await publicClient.readContract({ address: log.order, abi: orderAbi, functionName: 'status' });
+                if (!stillCurrent()) return;
+                const item = ordersRef.current.find((row) => row.order.toLowerCase() === log.order.toLowerCase());
+                if (item) { item.previewStatus = Number(status); setOrders([...ordersRef.current]); }
+              } catch { /* Status is optional; discovery remains available if this RPC fails. */ }
+            }
+          }
+          setOrderReadProgress(`Checking Arc history · block ${fromBlock.toString()} · ${ordersRef.current.length} found`);
+        },
+      });
+      if (!stillCurrent()) return;
+      orderScanCursorRef.current = result.cursor;
+      orderScanFinishedRef.current = result.completed;
+      setOrderReadState(result.completed ? 'success' : 'partial');
+      setOrderReadProgress(result.completed
+        ? `Register checked through block ${orderScanTipRef.current?.toString() ?? 'latest'}.`
+        : `Searching older Arc blocks · ${ordersRef.current.length} orders found so far`);
+      if (!result.completed && viewRef.current === 'orders') {
+        orderScanTimerRef.current = setTimeout(() => { void refreshOrders(connectedAccount); }, 900);
+      }
+    } catch (error) {
+      if (!stillCurrent()) return;
+      setOrderReadError(errorMessage(error));
+      setOrderReadState(ordersRef.current.length ? 'partial' : 'error');
+      setOrderReadProgress('Arc paused this search. Retry resumes from the last verified block.');
+    } finally {
+      if (stillCurrent()) {
+        orderScanRunningRef.current = false;
+        setLoadingOrders(false);
+      }
+    }
+  }, [account]);
+
   const connect = async (provider?: Eip1193Provider) => { setConnectionError(''); try { const result = await connectArcWallet(provider); setWalletProvider(result.provider); setAccount(result.account); setWalletClient(result.walletClient); if (view === 'orders') void refreshOrders(result.account); } catch (e) { setConnectionError(errorMessage(e)); } };
   const syncWallet = async (provider: Eip1193Provider) => { try { const result = await syncArcWallet(provider); if (!result) { setAccount(undefined); setWalletClient(undefined); return; } setAccount(result.account); setWalletClient(result.walletClient); if (view === 'orders') void refreshOrders(result.account); } catch (e) { setAccount(undefined); setWalletClient(undefined); setConnectionError(errorMessage(e)); } };
+  useEffect(() => { if (view === 'orders') void refreshOrders(account); else if (orderScanTimerRef.current) clearTimeout(orderScanTimerRef.current); }, [view, account, refreshOrders]);
   useEffect(() => { const provider = walletProvider; if (!provider) return; const handleWalletChange = () => { void syncWallet(provider); }; provider.on?.('accountsChanged', handleWalletChange); provider.on?.('chainChanged', handleWalletChange); return () => { provider.removeListener?.('accountsChanged', handleWalletChange); provider.removeListener?.('chainChanged', handleWalletChange); }; }, [walletProvider, view]);
   useEffect(() => { const handleConnectRequest = () => { void connect(); }; window.addEventListener('cargocommit:connect-wallet', handleConnectRequest); return () => window.removeEventListener('cargocommit:connect-wallet', handleConnectRequest); }, [view]);
   useEffect(() => { const handleRoute = () => { setView(viewFromHash(window.location.hash)); const order = orderFromHash(window.location.hash); if (order) setSelectedOrder(order); }; window.addEventListener('hashchange', handleRoute); window.addEventListener('popstate', handleRoute); return () => { window.removeEventListener('hashchange', handleRoute); window.removeEventListener('popstate', handleRoute); }; }, []);
   useEffect(() => { const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]')); if (!nodes.length) return; if (!('IntersectionObserver' in window)) { nodes.forEach((node) => node.classList.add('is-in')); return; } const observer = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('is-in'); observer.unobserve(entry.target); } }), { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }); nodes.forEach((node) => observer.observe(node)); return () => observer.disconnect(); }, [view]);
   const selected = orders.find((order) => order.order.toLowerCase() === selectedOrder?.toLowerCase()); const openView = (next: View, order?: Address, blockNumber?: bigint) => { setView(next); if (order) setSelectedOrder(order); const hash = order && next === 'orders' ? `#orders/${order}${blockNumber !== undefined ? `/${blockNumber}` : ''}` : `#${next === 'home' ? 'overview' : next === 'create' ? 'create-order' : next}`; if (window.location.hash !== hash) window.history.pushState({}, '', hash); window.scrollTo({ top: 0, behavior: 'smooth' }); }; const openAbout = () => { openView('home'); window.setTimeout(() => document.getElementById('arc-stage')?.scrollIntoView({ behavior: 'smooth' }), 0); };
- return <div className="app-shell-v2"><header className="site-header-v2 page-shell"><button className="brand-v2" onClick={() => openView('home')}><span className="brand-mark-v2" aria-hidden="true"><b>S</b><i /></span><span className="brand-wordmark-v2">SELDRA</span></button><nav aria-label="Primary product navigation"><button className={view === 'home' ? 'active' : ''} onClick={() => openView('home')}>OVERVIEW</button><button className={view === 'orders' ? 'active' : ''} onClick={() => openView('orders')}>ORDERS</button><button className={view === 'create' ? 'active' : ''} onClick={() => openView('create')}>CREATE ORDER</button><button className={view === 'proof' ? 'active' : ''} onClick={() => openView('proof')}>PROOF</button></nav><div className="header-right-v2"><NetworkBadge account={account} onConnect={() => void connect()} /></div></header>{connectionError && <FeedbackNotice tone="error" title="Wallet connection needs attention" toast onClose={() => setConnectionError('')}>{connectionError}</FeedbackNotice>}{view === 'home' && <Landing onView={openView} onConnect={() => void connect()} />}{view === 'proof' && <ProofPage />}{view === 'create' && <CreateOrder account={account} walletClient={walletClient} walletProvider={walletProvider} onCreated={(order, _hash, blockNumber) => { setSelectedOrder(order); void refreshOrders(); openView('orders', order, blockNumber); }} />}{view === 'orders' && <><OrdersPage account={account} orders={orders} selected={selectedOrder} onSelect={(order) => openView('orders', order)} onRefresh={() => void refreshOrders()} onConnect={() => void connect()} onCreate={() => openView('create')} loading={loadingOrders} readState={orderReadState} readError={orderReadError} /><section className="page-shell detail-section-v2"><OrderDetail account={account} order={selected} walletClient={walletClient} walletProvider={walletProvider} onRefresh={() => void refreshOrders()} /></section></>}{view !== 'orders' && <footer className="site-footer-v2 page-shell"><div><span>Seldra</span><p>Trade terms that move with the shipment.</p></div><div><button className="footer-anchor" onClick={openAbout}>Why Arc ↗</button><a href={explorerAddress(FACTORY_ADDRESS)} target="_blank" rel="noreferrer">Factory ↗</a><a href="https://github.com/Iniwura/cargocommit" target="_blank" rel="noreferrer">Source ↗</a><a href="https://github.com/Iniwura/cargocommit/blob/master/SECURITY.md" target="_blank" rel="noreferrer">Security ↗</a></div><small>ARC / 5042 / NATIVE USDC</small></footer>}</div>;
+ return <div className="app-shell-v2"><header className="site-header-v2 page-shell"><button className="brand-v2" onClick={() => openView('home')}><span className="brand-mark-v2" aria-hidden="true"><b>S</b><i /></span><span className="brand-wordmark-v2">SELDRA</span></button><nav aria-label="Primary product navigation"><button className={view === 'home' ? 'active' : ''} onClick={() => openView('home')}>OVERVIEW</button><button className={view === 'orders' ? 'active' : ''} onClick={() => openView('orders')}>ORDERS</button><button className={view === 'create' ? 'active' : ''} onClick={() => openView('create')}>CREATE ORDER</button><button className={view === 'proof' ? 'active' : ''} onClick={() => openView('proof')}>PROOF</button></nav><div className="header-right-v2"><NetworkBadge account={account} onConnect={() => void connect()} /></div></header>{connectionError && <FeedbackNotice tone="error" title="Wallet connection needs attention" toast onClose={() => setConnectionError('')}>{connectionError}</FeedbackNotice>}{view === 'home' && <Landing onView={openView} onConnect={() => void connect()} />}{view === 'proof' && <ProofPage />}{view === 'create' && <CreateOrder account={account} walletClient={walletClient} walletProvider={walletProvider} onCreated={(order, _hash, blockNumber) => { setSelectedOrder(order); void refreshOrders(); openView('orders', order, blockNumber); }} />}{view === 'orders' && <><OrdersPage account={account} orders={orders} selected={selectedOrder} onSelect={(order) => openView('orders', order)} onRefresh={() => void refreshOrders()} onConnect={() => void connect()} onCreate={() => openView('create')} loading={loadingOrders} readState={orderReadState} readError={orderReadError} readProgress={orderReadProgress} /><section className="page-shell detail-section-v2"><OrderDetail account={account} order={selected} walletClient={walletClient} walletProvider={walletProvider} onRefresh={() => void refreshOrders()} /></section></>}{view !== 'orders' && <footer className="site-footer-v2 page-shell"><div><span>Seldra</span><p>Trade terms that move with the shipment.</p></div><div><button className="footer-anchor" onClick={openAbout}>Why Arc ↗</button><a href={explorerAddress(FACTORY_ADDRESS)} target="_blank" rel="noreferrer">Factory ↗</a><a href="https://github.com/Iniwura/cargocommit" target="_blank" rel="noreferrer">Source ↗</a><a href="https://github.com/Iniwura/cargocommit/blob/master/SECURITY.md" target="_blank" rel="noreferrer">Security ↗</a></div><small>ARC / 5042 / NATIVE USDC</small></footer>}</div>;
 }
 
 export default App;
