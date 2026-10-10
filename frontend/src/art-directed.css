@@ -921,3 +921,18 @@ html, body { overflow-x: clip; }
 .release-security-grid strong { display: block; margin: 21px 0 8px; font: 400 25px/1.04 var(--serif); letter-spacing: -.04em; }
 .release-security-grid p { max-width: 350px; color: var(--cc-grey); font: 12px/1.65 var(--sans); }
 @media (max-width: 760px) { .release-security-top { align-items: flex-start; flex-direction: column; } .release-security-grid { grid-template-columns: 1fr; } .release-security-grid > div, .release-security-grid > div + div { padding: 20px 0; border-right: 0; border-bottom: 1px solid var(--cc-faint); } .release-security-grid > div:last-child { border-bottom: 0; } .release-security-grid strong { margin: 13px 0 6px; } }
+
+/* Wallet session controls and bounded historical-order lookup. */
+.network-badge .disconnect-wallet-v2 { margin-left: 7px; color: var(--cc-grey); border-bottom-color: var(--cc-grey); font: 650 9px var(--mono); letter-spacing: .015em; cursor: pointer; }
+.network-badge .disconnect-wallet-v2:hover { color: var(--cc-ink); border-bottom-color: var(--cc-ink); }
+.order-lookup-v2 { display: grid; gap: 12px; margin: 24px 0 54px; padding: 20px 24px; border: 1px solid var(--cc-faint); }
+.order-lookup-intro { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+.order-lookup-intro strong { font: 700 10px var(--mono); letter-spacing: .035em; }
+.order-lookup-intro span { color: var(--cc-grey); font-size: 12px; }
+.order-lookup-form { display: flex; flex-wrap: wrap; gap: 8px; }
+.order-lookup-form input { min-width: 0; flex: 1 1 260px; padding: 12px; border: 1px solid var(--cc-faint); border-radius: 0; background: transparent; color: var(--cc-ink); font: 12px var(--mono); }
+.order-lookup-form button { border: 1px solid var(--cc-ink); padding: 11px 16px; background: var(--cc-ink); color: #fff; font: 700 10px var(--mono); cursor: pointer; }
+.order-lookup-form button:disabled { opacity: .4; cursor: not-allowed; }
+.older-history-v2 { justify-self: start; padding: 8px 0; border: 0; border-bottom: 1px solid currentColor; background: transparent; color: var(--cc-ink); font: 700 10px var(--mono); cursor: pointer; }
+.older-history-v2:disabled { opacity: .5; cursor: wait; }
+@media (max-width: 600px) { .network-badge { flex-wrap: wrap; justify-content: flex-end; } .network-badge .disconnect-wallet-v2 { margin-left: 0; } .order-lookup-v2 { padding: 17px; } .order-lookup-form button { width: 100%; } }
