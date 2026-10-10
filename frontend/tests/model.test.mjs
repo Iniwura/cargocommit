@@ -187,7 +187,7 @@ test('parses public shareable order links without requiring a wallet', () => {
 });
 
 test('derives lifecycle next actions and action-required state from actual role and status', () => {
-  const snapshot = { status: 0, shipmentDeadline: 2000n, buyerDecisionDeadline: 3000n, disputeDeadline: 4000n };
+  const snapshot = { status: 0, fundingDeadline: 1500n, shipmentDeadline: 2000n, buyerDecisionDeadline: 3000n, disputeDeadline: 4000n };
   assert.equal(model.nextActionForRole('supplier', snapshot, 1000n), 'ACCEPT ORDER');
   assert.equal(model.nextActionForRole('buyer', { ...snapshot, status: 1 }, 1000n), 'FUND ORDER');
   assert.equal(model.nextActionForRole('supplier', { ...snapshot, status: 2 }, 1000n), 'SUBMIT EVIDENCE');
@@ -197,6 +197,31 @@ test('derives lifecycle next actions and action-required state from actual role 
   assert.equal(model.actionRequiredForRole('supplier', snapshot, 1000n), true);
   assert.equal(model.actionRequiredForRole('buyer', { ...snapshot, status: 0 }, 1000n), false);
   assert.equal(model.actionRequiredForRole('buyer', { ...snapshot, status: 5 }, 1000n), false);
+  assert.equal(model.nextActionForRole('supplier', snapshot, 1501n), 'FUNDING EXPIRED');
+  assert.equal(model.nextActionForRole('buyer', snapshot, 1501n), 'CANCEL EXPIRED ORDER');
+  assert.equal(model.nextActionForRole('buyer', { ...snapshot, status: 1 }, 1501n), 'CANCEL EXPIRED ORDER');
+  assert.equal(model.actionRequiredForRole('buyer', { ...snapshot, status: 1 }, 1501n), true);
+  assert.equal(model.nextActionForRole('supplier', { ...snapshot, status: 2 }, 2001n), 'SHIPMENT DEADLINE PASSED');
+  assert.equal(model.nextActionForRole('buyer', { ...snapshot, status: 2 }, 2001n), 'CLAIM REFUND');
+  assert.equal(model.nextActionForRole('observer', { ...snapshot, status: 4 }, 4001n), 'CLAIM FALLBACK');
+  assert.equal(model.actionRequiredForRole('observer', { ...snapshot, status: 4 }, 4001n), true);
+});
+
+test('onchain timestamps prevent a cancelled order looking funded', () => {
+  const cancelled = { acceptedAt: 101n, fundedAt: 0n, shipmentSubmittedAt: 0n, status: 5, outcome: 1 };
+  assert.deepEqual(model.orderLifecycleMilestones(cancelled), [
+    ['TERMS CREATED', true],
+    ['SUPPLIER ACCEPTED', true],
+    ['ORDER FUNDED', false],
+    ['EVIDENCE SUBMITTED', false],
+    ['ORDER CANCELLED', true],
+  ]);
+  const refunded = { ...cancelled, fundedAt: 102n, status: 5, outcome: 2 };
+  assert.equal(model.orderLifecycleMilestones(refunded)[2][1], true);
+  assert.equal(model.orderLifecycleMilestones(refunded)[4][0], 'SHIPMENT REFUNDED');
+  const disputed = { ...refunded, shipmentSubmittedAt: 103n, status: 4, outcome: 0 };
+  assert.equal(model.orderLifecycleMilestones(disputed)[3][1], true);
+  assert.equal(model.orderLifecycleMilestones(disputed)[4][0], 'DISPUTE OPENED');
 });
 
 test('blocks a changed signer and preserves the reviewed draft', () => {
