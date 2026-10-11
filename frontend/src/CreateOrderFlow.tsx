@@ -133,7 +133,7 @@ export default function CreateOrder({ account, walletClient, walletProvider, onC
   const [stage, setStage] = useState<TransactionStage>('idle');
   const [created, setCreated] = useState<{ order: Address; hash: Hash; blockNumber: bigint; amount: bigint; deposit: bigint; reserve: bigint }>();
   const [pendingHash, setPendingHash] = useState<Hash>();
-  const pendingBuyerRef = useRef<Address>();
+  const pendingBuyerRef = useRef<Address | undefined>(undefined);
   const lastStepRef = useRef(draft.step);
   const lastPreviewRef = useRef(false);
 
