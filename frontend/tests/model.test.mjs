@@ -370,3 +370,19 @@ test('untrusted or malformed stored create receipts never block another wallet',
   assert.throws(() => model.pendingCreateStorageKey('invalid'), /buyer/);
   assert.throws(() => model.serializePendingCreate(buyer, '0xdeadbeef'), /transaction/);
 });
+
+test('pending order actions survive reload only for the matching contract', () => {
+  const order = '0x60958fd86d2d52670181afb4097d1b280a37848c';
+  const other = '0x6ff65de6016d9e1083b2f7d7e3abaff1ab2c9201';
+  const actor = '0x5c526d2c665147fab7849353dc65970879379bb2';
+  const hash = '0x' + 'a'.repeat(64);
+  const payload = model.serializePendingAction(order, actor, hash);
+  assert.equal(model.pendingActionStorageKey(order.toUpperCase().replace('0X', '0x')), model.pendingActionStorageKey(order));
+  assert.deepEqual(model.restorePendingAction(payload, order), { actor, hash });
+  assert.equal(model.restorePendingAction(payload, other), undefined);
+  assert.equal(model.restorePendingAction(null, order), undefined);
+  const data = JSON.parse(payload);
+  assert.equal(model.restorePendingAction(JSON.stringify({ ...data, chainId: 1 }), order), undefined);
+  assert.equal(model.restorePendingAction(JSON.stringify({ ...data, hash: '0x0' }), order), undefined);
+  assert.equal(model.restorePendingAction('invalid json', order), undefined);
+});
