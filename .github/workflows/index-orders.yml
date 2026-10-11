@@ -2,7 +2,9 @@ name: Update Seldra order index
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    # Offset away from minute 00 to reduce GitHub's documented peak-time delays.
+    # GitHub schedules are best-effort; browser reads must catch up independently.
+    - cron: '2/5 * * * *'
   workflow_dispatch:
   # One-shot smoke run when the indexer workflow itself changes.
   push:
