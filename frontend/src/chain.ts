@@ -285,6 +285,31 @@ export { FACTORY_ADDRESS, factoryAbi, orderAbi };
  */
 export type FactoryOrderProof = { created: OrderCreatedLog; originator: Address; blockNumber: bigint; transactionHash: Hash };
 
+/** Recover an order absent from the scheduled catalog using only the latest 4,000 blocks.
+ * The returned height is an untrusted lookup hint. verifyFactoryOrder still checks
+ * official factory provenance, transaction sender and immutable terms.
+ */
+export async function findRecentFactoryOrderBlock(
+  client: PublicClient,
+  address: Address,
+  recentBlocks = 4_000n,
+): Promise<bigint | undefined> {
+  const latest = await client.getBlockNumber();
+  if (recentBlocks <= 0n) throw new RangeError('Recent order lookup range must be positive');
+  const first = latest - ARC_DEPLOYMENT_BLOCK + 1n > recentBlocks
+    ? latest - recentBlocks + 1n
+    : ARC_DEPLOYMENT_BLOCK;
+  const event = parseAbiItem('event OrderCreated(address indexed order,address indexed buyer,address indexed supplier,address arbiter,uint256 orderAmount,uint16 depositBps,uint16 fallbackSupplierBps,uint256 fundingDeadline,uint256 shipmentDeadline,uint256 buyerDecisionDeadline,uint256 disputeDeadline,bytes32 termsHash)');
+  for (const [fromBlock, toBlock] of orderCreatedBlockRanges(first, latest).reverse()) {
+    const logs = await client.getLogs({
+      address: FACTORY_ADDRESS, event, args: { order: address }, fromBlock, toBlock,
+    } as never) as unknown as Array<{ blockNumber: bigint | null; args: { order: Address } }>;
+    const found = logs.find(log => log.blockNumber !== null && log.args.order.toLowerCase() === address.toLowerCase());
+    if (found?.blockNumber !== null && found?.blockNumber !== undefined) return found.blockNumber;
+  }
+  return undefined;
+}
+
 export async function verifyFactoryOrder(client: PublicClient, address: Address, blockHint?: bigint): Promise<FactoryOrderProof> {
   const event = parseAbiItem('event OrderCreated(address indexed order,address indexed buyer,address indexed supplier,address arbiter,uint256 orderAmount,uint16 depositBps,uint16 fallbackSupplierBps,uint256 fundingDeadline,uint256 shipmentDeadline,uint256 buyerDecisionDeadline,uint256 disputeDeadline,bytes32 termsHash)');
   const latest = await client.getBlockNumber();
