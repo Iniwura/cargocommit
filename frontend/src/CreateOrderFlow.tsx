@@ -171,12 +171,14 @@ export default function CreateOrder({ account, walletClient, walletProvider, onC
     } catch { /* Storage may be disabled; the currently open page remains usable. */ }
   }, [account]);
 
-  const clearRecordedPending = (buyer = pendingBuyerRef.current) => {
+  const clearRecordedPending = (buyer: Address | undefined, hash: Hash) => {
     if (buyer) {
       try { window.localStorage.removeItem(pendingCreateStorageKey(buyer)); } catch { /* best-effort */ }
     }
+    // A different wallet may have connected while the earlier receipt was pending.
+    if (pendingBuyerRef.current?.toLowerCase() !== buyer?.toLowerCase()) return;
     pendingBuyerRef.current = undefined;
-    setPendingHash(undefined);
+    setPendingHash(current => current?.toLowerCase() === hash.toLowerCase() ? undefined : current);
   };
 
   const updateDraft = <K extends keyof LocalOrderDraft>(key: K, value: LocalOrderDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
@@ -241,13 +243,14 @@ export default function CreateOrder({ account, walletClient, walletProvider, onC
 
   const back = () => { if (activeStep > 1) setDraft((current) => ({ ...current, step: (current.step - 1) as CreateWizardStep })); };
 
-  const finalizeSubmittedOrder = async (hash: Hash) => {
+  const finalizeSubmittedOrder = async (hash: Hash, buyer = pendingBuyerRef.current) => {
     setBusy(true); setStage('confirming'); setError('');
     try {
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       if (receipt.status !== 'success') {
-        clearRecordedPending(); setStage('idle');
-        setError('Arc confirmed that order creation reverted. The order was not created.');
+        const currentBuyer = pendingBuyerRef.current?.toLowerCase() === buyer?.toLowerCase();
+        clearRecordedPending(buyer, hash);
+        if (currentBuyer) { setStage('idle'); setError('Arc confirmed that order creation reverted. The order was not created.'); }
         return;
       }
       const logs = await fetchOrderCreatedLogs(publicClient, { fromBlock: receipt.blockNumber, toBlock: receipt.blockNumber });
@@ -260,9 +263,13 @@ export default function CreateOrder({ account, walletClient, walletProvider, onC
         window.localStorage.setItem(`cargocommit:order:${createdLog.order}`, JSON.stringify({ poReference: draft.poReference.trim(), documentCommitment: draft.documentReference.trim(), savedAt: new Date().toISOString() }));
       } catch { /* Local-only references must never cause a successful transaction to appear failed. */ }
       const canonicalDeposit = createdLog.orderAmount * BigInt(createdLog.depositBps) / 100n;
-      setCreated({ order: createdLog.order, hash, blockNumber: receipt.blockNumber, amount: createdLog.orderAmount, deposit: canonicalDeposit, reserve: createdLog.orderAmount - canonicalDeposit });
-      clearRecordedPending(); setStage('success'); setPreview(false);
-      setMessage('Purchase order created. Its terms are now immutable.');
+      const currentBuyer = pendingBuyerRef.current?.toLowerCase() === buyer?.toLowerCase();
+      clearRecordedPending(buyer, hash);
+      if (currentBuyer) {
+        setCreated({ order: createdLog.order, hash, blockNumber: receipt.blockNumber, amount: createdLog.orderAmount, deposit: canonicalDeposit, reserve: createdLog.orderAmount - canonicalDeposit });
+        setStage('success'); setPreview(false);
+        setMessage('Purchase order created. Its terms are now immutable.');
+      }
     } catch {
       setStage('submitted'); setError(pendingReceiptMessage());
     } finally { setBusy(false); }
