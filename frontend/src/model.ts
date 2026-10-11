@@ -455,3 +455,62 @@ export function factoryOriginMatches(created: FactoryCreatedTerms, originator: s
     && created.termsHash.toLowerCase() === snapshot.termsHash.toLowerCase()
     && snapshot.accountingInvariant;
 }
+
+// A submitted factory transaction must survive reloads. No credentials or order
+// authorization are stored; the hash is only a receipt lookup reference.
+export type PendingCreate = { buyer: string; hash: Hash; recordedAt: number };
+export function pendingCreateStorageKey(buyer: string): string {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(buyer)) throw new Error('Invalid pending-order buyer');
+  return `seldra:pending-create:v1:${buyer.toLowerCase()}`;
+}
+
+export function serializePendingCreate(buyer: string, hash: Hash, recordedAt = Date.now()): string {
+  pendingCreateStorageKey(buyer);
+  if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new Error('Invalid pending-order transaction');
+  if (!Number.isSafeInteger(recordedAt) || recordedAt < 0) throw new Error('Invalid pending-order timestamp');
+  return JSON.stringify({ version: 1, chainId: 5042, buyer: buyer.toLowerCase(), hash, recordedAt });
+}
+
+export function restorePendingCreate(raw: string | null, buyer: string): PendingCreate | undefined {
+  const normalizedBuyer = buyer.toLowerCase();
+  pendingCreateStorageKey(buyer);
+  if (!raw) return undefined;
+  try {
+    const data: unknown = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return undefined;
+    const record = data as Record<string, unknown>;
+    if (record.version !== 1 || record.chainId !== 5042 ||
+        typeof record.buyer !== 'string' || record.buyer.toLowerCase() !== normalizedBuyer ||
+        typeof record.hash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(record.hash) ||
+        typeof record.recordedAt !== 'number' || !Number.isSafeInteger(record.recordedAt) ||
+        record.recordedAt < 0) return undefined;
+    return { buyer: normalizedBuyer, hash: record.hash as Hash, recordedAt: record.recordedAt };
+  } catch { return undefined; }
+}
+
+// An order action receipt is stored per order, so reloading cannot silently
+// enable a second transaction while a submitted action remains unresolved.
+export function pendingActionStorageKey(order: string): string {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(order)) throw new Error('Invalid pending-action order');
+  return `seldra:pending-action:v1:${order.toLowerCase()}`;
+}
+export function serializePendingAction(order: string, buyerOrActor: string, hash: Hash): string {
+  pendingActionStorageKey(order);
+  if (!/^0x[0-9a-fA-F]{40}$/.test(buyerOrActor)) throw new Error('Invalid pending-action wallet');
+  if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new Error('Invalid pending-action hash');
+  return JSON.stringify({ version: 1, chainId: 5042, order: order.toLowerCase(), actor: buyerOrActor.toLowerCase(), hash });
+}
+export function restorePendingAction(raw: string | null, order: string): { actor: Address; hash: Hash } | undefined {
+  const normalized = order.toLowerCase();
+  pendingActionStorageKey(order);
+  if (!raw) return undefined;
+  try {
+    const data: unknown = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return undefined;
+    const record = data as Record<string, unknown>;
+    if (record.version !== 1 || record.chainId !== 5042 || record.order !== normalized ||
+        typeof record.actor !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(record.actor) ||
+        typeof record.hash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(record.hash)) return undefined;
+    return { actor: record.actor as Address, hash: record.hash as Hash };
+  } catch { return undefined; }
+}

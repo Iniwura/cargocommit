@@ -41,6 +41,7 @@ The Seldra frontend lives in [`frontend/`](frontend/). It is a read/write Arc ma
 - discovers orders from `OrderCreated` events;
 - gates actions by the immutable buyer, supplier and arbiter roles;
 - waits for receipts and surfaces transaction links to the Arc explorer;
+- saves submitted transaction hashes locally per buyer/order so an interrupted receipt read can be resumed after reconnecting or reloading, without submitting a duplicate; this recovery is device-local and is not a substitute for checking Arc Explorer;
 - keeps document contents offchain and only hashes typed evidence references locally before sending the commitment.
 
 Run it locally:

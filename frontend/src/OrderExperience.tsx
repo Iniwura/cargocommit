@@ -5,7 +5,7 @@ import { orderAbi, type OrderCreatedLog } from './contracts';
 import { FeedbackNotice } from './FeedbackNotice';
 import { pendingReceiptMessage, productErrorText } from './feedback';
 import { fetchIndexedOrderActivity, fetchIndexedOrderBlock } from './orderIndex';
-import { actionRequiredForRole, formatUsdc, nextActionForRole, orderLifecycleMilestones, orderAddressFromHash, orderBlockHintFromHash, outcomeLabel, roleFor, shortenAddress, statusLabel, type Role } from './model';
+import { actionRequiredForRole, formatUsdc, nextActionForRole, orderLifecycleMilestones, orderAddressFromHash, orderBlockHintFromHash, outcomeLabel, roleFor, shortenAddress, statusLabel, pendingActionStorageKey, serializePendingAction, restorePendingAction, type Role } from './model';
 
 type Snapshot = Awaited<ReturnType<typeof readOrderSnapshot>>;
 export type EnrichedOrder = OrderCreatedLog & { snapshot?: Snapshot; previewStatus?: number };
@@ -144,6 +144,20 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
     })();
     return () => { cancelled = true; };
   }, [selectedAddress, order?.blockNumber]);
+  useEffect(() => {
+    if (!selectedAddress) { setSubmittedHash(undefined); return; }
+    try {
+      const saved = restorePendingAction(window.localStorage.getItem(pendingActionStorageKey(selectedAddress)), selectedAddress);
+      setSubmittedHash(saved?.hash);
+      if (saved) setNotice(pendingReceiptMessage());
+    } catch { /* Private browsing can disable storage. */ }
+  }, [selectedAddress]);
+  const clearRecordedAction = () => {
+    if (selectedAddress) {
+      try { window.localStorage.removeItem(pendingActionStorageKey(selectedAddress)); } catch { /* best effort */ }
+    }
+    setSubmittedHash(undefined);
+  };
   const refresh = useCallback(async () => {
     if (!selectedAddress) return;
     const normalizedAddress = selectedAddress.toLowerCase();
@@ -233,8 +247,10 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
     try {
       const hash = await activeWallet.walletClient.writeContract({ address: selectedAddress, abi: orderAbi, functionName, args, value, chain: arcMainnet, account: activeWallet.account } as never);
       broadcastHash = hash; setSubmittedHash(hash); setTxStage('confirming');
+      try { window.localStorage.setItem(pendingActionStorageKey(selectedAddress), serializePendingAction(selectedAddress, activeWallet.account, hash)); }
+      catch { setNotice('Transaction sent; this browser cannot preserve its hash after refresh. Copy the Arc receipt link.'); }
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      setSubmittedHash(undefined);
+      clearRecordedAction();
       if (receipt.status !== 'success') { setError('Arc confirmed this transaction reverted. No state was changed. Refresh the order before trying another action.'); return; }
       setTxHash(hash); setTxStage('idle');
       await refresh(); onRefresh();
@@ -251,7 +267,7 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
     setBusy(true);
     try {
       const receipt = await publicClient.waitForTransactionReceipt({ hash: submittedHash });
-      setSubmittedHash(undefined);
+      clearRecordedAction();
       if (receipt.status === 'success') { setTxHash(submittedHash); setNotice(''); await refresh(); onRefresh(); }
       else { setError('Arc confirmed this transaction reverted. No state was changed.'); setNotice(''); }
     } catch { setNotice(pendingReceiptMessage()); } finally { setBusy(false); }
