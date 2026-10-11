@@ -344,3 +344,29 @@ test('deadline timeline begins without a nonexistent interval and formats later 
   assert.equal(model.deadlineGapLabel(deadlines, 5), undefined);
   assert.equal(model.deadlineGapLabel([100n, 90n], 2), undefined);
 });
+
+test('pending order creation survives reload for the originating wallet only', () => {
+  const buyer = '0xd0dd02322AF812fC0dbDdC69f9a055FBBe2C6673';
+  const otherBuyer = '0x5c526d2c665147fab7849353dc65970879379bb2';
+  const hash = '0x' + 'a'.repeat(64);
+  const encoded = model.serializePendingCreate(buyer, hash, 123456);
+  assert.equal(model.pendingCreateStorageKey(buyer), model.pendingCreateStorageKey(buyer.toLowerCase()));
+  assert.deepEqual(model.restorePendingCreate(encoded, buyer), { buyer: buyer.toLowerCase(), hash, recordedAt: 123456 });
+  assert.equal(model.restorePendingCreate(encoded, otherBuyer), undefined);
+  assert.equal(model.restorePendingCreate(null, buyer), undefined);
+  assert.equal(model.restorePendingCreate('not-json', buyer), undefined);
+});
+
+test('untrusted or malformed stored create receipts never block another wallet', () => {
+  const buyer = '0xd0dd02322AF812fC0dbDdC69f9a055FBBe2C6673';
+  const valid = JSON.parse(model.serializePendingCreate(buyer, '0x' + 'a'.repeat(64), 400));
+  for (const altered of [
+    { ...valid, chainId: 1 },
+    { ...valid, buyer: '0x' + 'b'.repeat(40) },
+    { ...valid, hash: '0xdeadbeef' },
+    { ...valid, recordedAt: '400' },
+    { ...valid, version: 99 },
+  ]) assert.equal(model.restorePendingCreate(JSON.stringify(altered), buyer), undefined);
+  assert.throws(() => model.pendingCreateStorageKey('invalid'), /buyer/);
+  assert.throws(() => model.serializePendingCreate(buyer, '0xdeadbeef'), /transaction/);
+});
