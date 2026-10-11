@@ -455,3 +455,35 @@ export function factoryOriginMatches(created: FactoryCreatedTerms, originator: s
     && created.termsHash.toLowerCase() === snapshot.termsHash.toLowerCase()
     && snapshot.accountingInvariant;
 }
+
+// A submitted factory transaction must survive reloads. No credentials or order
+// authorization are stored; the hash is only a receipt lookup reference.
+export type PendingCreate = { buyer: string; hash: Hash; recordedAt: number };
+export function pendingCreateStorageKey(buyer: string): string {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(buyer)) throw new Error('Invalid pending-order buyer');
+  return `seldra:pending-create:v1:${buyer.toLowerCase()}`;
+}
+
+export function serializePendingCreate(buyer: string, hash: Hash, recordedAt = Date.now()): string {
+  pendingCreateStorageKey(buyer);
+  if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new Error('Invalid pending-order transaction');
+  if (!Number.isSafeInteger(recordedAt) || recordedAt < 0) throw new Error('Invalid pending-order timestamp');
+  return JSON.stringify({ version: 1, chainId: 5042, buyer: buyer.toLowerCase(), hash, recordedAt });
+}
+
+export function restorePendingCreate(raw: string | null, buyer: string): PendingCreate | undefined {
+  const normalizedBuyer = buyer.toLowerCase();
+  pendingCreateStorageKey(buyer);
+  if (!raw) return undefined;
+  try {
+    const data: unknown = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return undefined;
+    const record = data as Record<string, unknown>;
+    if (record.version !== 1 || record.chainId !== 5042 ||
+        typeof record.buyer !== 'string' || record.buyer.toLowerCase() !== normalizedBuyer ||
+        typeof record.hash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(record.hash) ||
+        typeof record.recordedAt !== 'number' || !Number.isSafeInteger(record.recordedAt) ||
+        record.recordedAt < 0) return undefined;
+    return { buyer: normalizedBuyer, hash: record.hash as Hash, recordedAt: record.recordedAt };
+  } catch { return undefined; }
+}
