@@ -13,7 +13,7 @@ import {
 } from 'viem';
 import { FACTORY_ADDRESS, factoryAbi, orderAbi, type OrderCreatedLog } from './contracts';
 import { orderCreatedBlockRanges } from './logRanges';
-import { bpsToPercent, factoryOriginMatches } from './model';
+import { bpsToPercent, factoryOriginMatches, requireFactoryVerificationBlock } from './model';
 
 export { ORDER_LOG_CHUNK_SIZE, orderCreatedBlockRanges } from './logRanges';
 
@@ -311,10 +311,8 @@ export async function verifyFactoryOrder(client: PublicClient, address: Address,
   // The address lookup already resolved this factory block from the published
   // index, a share URL, or bounded recent logs. A missing/wrong block hint must
   // fail closed, NEVER start an unbounded scan from deployment in the browser.
-  if (blockHint === undefined || blockHint < ARC_DEPLOYMENT_BLOCK) {
-    throw new Error('A verified factory creation block is required.');
-  }
-  const ranges: Array<readonly [bigint, bigint]> = [[blockHint, blockHint]];
+  const exactBlock = requireFactoryVerificationBlock(blockHint, ARC_DEPLOYMENT_BLOCK);
+  const ranges: Array<readonly [bigint, bigint]> = [[exactBlock, exactBlock]];
   for (const [fromBlock, toBlock] of ranges) {
     const logs = await client.getLogs({ address: FACTORY_ADDRESS, event, args: { order: address }, fromBlock, toBlock } as never);
     for (const item of logs) {
