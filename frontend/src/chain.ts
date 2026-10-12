@@ -61,18 +61,18 @@ function arcReadProvider(provider: Eip1193Provider): Eip1193Provider {
   };
 }
 
-const injectedProvider = typeof window !== 'undefined' ? window.ethereum : undefined;
-const directReadTransport = http(ARC_RPC, { timeout: 15_000, retryCount: 2 });
-const readTransport = injectedProvider
-  ? fallback([directReadTransport, custom(arcReadProvider(injectedProvider))], { retryCount: 2 })
-  : directReadTransport;
-
-export const publicClient = createPublicClient({ chain: arcMainnet, transport: readTransport });
-// Background factory discovery must not hang on wallet-provider fallback.
-export const orderScanClient = createPublicClient({
-  chain: arcMainnet,
-  transport: http(ARC_RPC, { timeout: 7_000, retryCount: 0 }),
-});
+// Independent read-only mainnet providers. Never fall back to the wallet's
+// signing provider for contract/index reads: that provider may block or rate-limit
+// historical logs independently of the user's actual wallet connection.
+const ARC_READ_FALLBACK = 'https://arc-rpc.publicnode.com';
+function readOnlyTransport(timeout: number) {
+  return fallback([
+    http(ARC_RPC, { timeout, retryCount: 0 }),
+    http(ARC_READ_FALLBACK, { timeout, retryCount: 0 }),
+  ], { retryCount: 0 });
+}
+export const publicClient = createPublicClient({ chain: arcMainnet, transport: readOnlyTransport(8_000) });
+export const orderScanClient = createPublicClient({ chain: arcMainnet, transport: readOnlyTransport(6_000) });
 
 export function explorerTx(hash: string): string {
   return `${ARC_EXPLORER}/tx/${hash}`;
@@ -241,7 +241,15 @@ export async function readOrderSnapshot(client: PublicClient, address: Address) 
     'termsHash', 'status', 'outcome', 'reserveRemaining', 'shipmentEvidenceHash', 'disputeReasonHash', 'accountingInvariant',
     'acceptedAt', 'fundedAt', 'shipmentSubmittedAt',
   ] as const;
-  const values = await Promise.all(functionNames.map((functionName) => client.readContract({ address, abi: orderAbi, functionName } as never)));
+  // 22 parallel eth_call requests can overwhelm a shared RPC or wallet proxy.
+  // Four bounded concurrent reads trade a little latency for repeatable results.
+  const values: unknown[] = [];
+  for (let i = 0; i < functionNames.length; i += 4) {
+    const group = await Promise.all(functionNames.slice(i, i + 4).map(
+      (functionName) => client.readContract({ address, abi: orderAbi, functionName } as never),
+    ));
+    values.push(...group);
+  }
   return {
     buyer: values[0] as Address,
     supplier: values[1] as Address,
@@ -312,13 +320,13 @@ export async function findRecentFactoryOrderBlock(
 
 export async function verifyFactoryOrder(client: PublicClient, address: Address, blockHint?: bigint): Promise<FactoryOrderProof> {
   const event = parseAbiItem('event OrderCreated(address indexed order,address indexed buyer,address indexed supplier,address arbiter,uint256 orderAmount,uint16 depositBps,uint16 fallbackSupplierBps,uint256 fundingDeadline,uint256 shipmentDeadline,uint256 buyerDecisionDeadline,uint256 disputeDeadline,bytes32 termsHash)');
-  const latest = await client.getBlockNumber();
-  // The optional link block is merely a lookup hint, NEVER proof on its own.
-  const first = blockHint !== undefined && blockHint >= ARC_DEPLOYMENT_BLOCK && blockHint <= latest
-    ? [[blockHint, blockHint] as const]
-    : [];
-  const remaining = orderCreatedBlockRanges(ARC_DEPLOYMENT_BLOCK, latest).reverse();
-  const ranges: Array<readonly [bigint, bigint]> = [...first, ...remaining.filter(([start, end]) => !first.length || start !== blockHint || end !== blockHint)];
+  // The address lookup already resolved this factory block from the published
+  // index, a share URL, or bounded recent logs. A missing/wrong block hint must
+  // fail closed, NEVER start an unbounded scan from deployment in the browser.
+  if (blockHint === undefined || blockHint < ARC_DEPLOYMENT_BLOCK) {
+    throw new Error('A verified factory creation block is required.');
+  }
+  const ranges: Array<readonly [bigint, bigint]> = [[blockHint, blockHint]];
   for (const [fromBlock, toBlock] of ranges) {
     const logs = await client.getLogs({ address: FACTORY_ADDRESS, event, args: { order: address }, fromBlock, toBlock } as never);
     for (const item of logs) {
