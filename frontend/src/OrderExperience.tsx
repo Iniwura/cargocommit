@@ -67,9 +67,9 @@ export function OrdersPage({ account, orders, selected, onSelect, onOpenOrder, o
   });
   const ledger = filtered.length === 0
     ? <div className="empty-state-v2"><Stamp tone="ink">NO ORDERS</Stamp><h2>NO ORDERS YET</h2><p>{filter === 'all' ? 'No matching orders in the recent blocks checked. Older history can be searched below.' : 'No orders match this filter.'}</p><button className="secondary-button empty-state-action" onClick={onCreate}>CREATE ORDER</button></div>
-    : <div className="ledger-list"><div className="ledger-heading"><span>REF / ORDER</span><span>ROLE</span><span>AMOUNT / SPLIT</span><span>STATE / NEXT ACTION</span><span>DEADLINE</span></div>{filtered.map((order, index) => { const snapshot = order.snapshot; const role = roleFor(account, snapshot?.buyer ?? order.buyer, snapshot?.supplier ?? order.supplier, snapshot?.arbiter ?? order.arbiter); const action = nextActionForRole(role, snapshot); const actionable = snapshot ? actionRequiredForRole(role, snapshot) : false; return <button className={`ledger-row ${selected?.toLowerCase() === order.order.toLowerCase() ? 'selected' : ''} ${actionable ? 'action-required' : ''}`} onClick={() => onSelect(order.order)} key={order.order}><span className="ledger-index">{String(index + 1).padStart(2, '0')}</span><span className="ledger-order"><strong>PO / {shortenAddress(order.order, 8, 6)}</strong><small>{shortenAddress(order.buyer)} BUYER · {shortenAddress(order.supplier)} SUPPLIER</small></span><span className="ledger-role"><b>{role.toUpperCase()}</b><small>{snapshot ? money(snapshot.orderAmount) : money(order.orderAmount)} · {snapshot ? snapshot.depositBps : order.depositBps}/{100 - (snapshot?.depositBps ?? order.depositBps)}</small></span><span className="ledger-state"><b>{snapshot ? statusLabel(snapshot.status).toUpperCase() : order.previewStatus !== undefined ? statusLabel(order.previewStatus).toUpperCase() : 'CHECKING STATE…'}</b><small>{actionable ? `ACTION REQUIRED · ${action}` : action}</small></span><span className="ledger-deadline"><b>{snapshot ? dateLabel(snapshot.shipmentDeadline) : dateLabel(order.shipmentDeadline)}</b><small>{snapshot ? `${money(snapshot.reserveRemaining)} RESERVE` : 'READING STATE'}</small></span><em>↗</em></button>; })}</div>;
+    : <div className="ledger-list"><div className="ledger-heading"><span>REF / ORDER</span><span>ROLE</span><span>AMOUNT / SPLIT</span><span>STATE / NEXT ACTION</span><span>DEADLINE</span></div>{filtered.map((order, index) => { const snapshot = order.snapshot; const role = roleFor(account, snapshot?.buyer ?? order.buyer, snapshot?.supplier ?? order.supplier, snapshot?.arbiter ?? order.arbiter); const action = nextActionForRole(role, snapshot); const actionable = snapshot ? actionRequiredForRole(role, snapshot) : false; return <button className={`ledger-row ${selected?.toLowerCase() === order.order.toLowerCase() ? 'selected' : ''} ${actionable ? 'action-required' : ''}`} onClick={() => onSelect(order.order)} key={order.order}><span className="ledger-index">{String(index + 1).padStart(2, '0')}</span><span className="ledger-order"><strong>PO / {shortenAddress(order.order, 8, 6)}</strong><small>{shortenAddress(order.buyer)} BUYER · {shortenAddress(order.supplier)} SUPPLIER</small></span><span className="ledger-role"><b>{role.toUpperCase()}</b><small>{snapshot ? money(snapshot.orderAmount) : money(order.orderAmount)} · {snapshot ? snapshot.depositBps : order.depositBps}/{100 - (snapshot?.depositBps ?? order.depositBps)}</small></span><span className="ledger-state"><b>{snapshot ? statusLabel(snapshot.status).toUpperCase() : order.previewStatus !== undefined ? statusLabel(order.previewStatus).toUpperCase() : 'STATUS UNAVAILABLE'}</b><small>{actionable ? `ACTION REQUIRED · ${action}` : action}</small></span><span className="ledger-deadline"><b>{snapshot ? dateLabel(snapshot.shipmentDeadline) : dateLabel(order.shipmentDeadline)}</b><small>{snapshot ? `${money(snapshot.reserveRemaining)} RESERVE` : 'ONCHAIN READ PENDING'}</small></span><em>↗</em></button>; })}</div>;
   const registerError = <div className="form-alert-v2 error order-read-alert" role="alert"><span>ARC READ PAUSED · {readError || 'Try the order register again.'} Already found orders remain available.</span><button type="button" className="quiet-button" onClick={onRefresh}>RETRY</button></div>;
-  const progressNotice = (readState === 'loading' || readState === 'partial') && <div className="form-alert-v2 order-read-alert" role="status"><span>{readProgress || 'Discovering orders from Arc. Older orders may take longer to appear.'}</span>{!loading && <button type="button" className="quiet-button" onClick={onRefresh}>CONTINUE SEARCH</button>}</div>;
+  const progressNotice = !readError && (readState === 'loading' || readState === 'partial') && <div className="form-alert-v2 order-read-alert" role="status"><span>{readProgress || 'Discovering orders from Arc. Older orders may take longer to appear.'}</span>{!loading && <button type="button" className="quiet-button" onClick={onRefresh}>CONTINUE SEARCH</button>}</div>;
   const registerContent = readState === 'error'
     ? orders.length ? <>{registerError}{ledger}</> : <div className="empty-state-v2" role="status"><Stamp tone="ink">NO ORDERS</Stamp><h2>ORDER HISTORY UNAVAILABLE</h2><p>The network or published order index couldn't finish checking this wallet. We cannot say there are no orders yet.</p><button className="secondary-button empty-state-action" onClick={onRefresh}>CHECK AGAIN</button></div>
     : readState === 'loading' && !orders.length
@@ -92,6 +92,7 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
   const [factoryProof, setFactoryProof] = useState<FactoryOrderProof>();
   const [notice, setNotice] = useState('');
   const previousVerifiedAddressRef = useRef<string | undefined>(undefined);
+  const lastVerifiedSnapshotRef = useRef<{ address: string; at: number } | undefined>(undefined);
   const [error, setError] = useState('');
   const [evidence, setEvidence] = useState('');
   const [reason, setReason] = useState('');
@@ -135,6 +136,7 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
             : 'Order terms or accounting do not match the official Seldra factory record.');
           return;
         }
+        lastVerifiedSnapshotRef.current = { address: selectedAddress.toLowerCase(), at: Date.now() };
         setFactoryProof(proof); setProvenance('verified'); setSnapshot(current);
       } catch {
         if (cancelled) return;
@@ -159,7 +161,7 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
     setSubmittedHash(undefined);
   };
   const refresh = useCallback(async () => {
-    if (!selectedAddress) return;
+    if (!selectedAddress || provenance !== 'verified') return;
     const normalizedAddress = selectedAddress.toLowerCase();
     if (activityReadRef.current.address !== normalizedAddress) {
       activityReadRef.current = { address: normalizedAddress, rows: [], scanning: false };
@@ -169,11 +171,18 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
     }
     // Keep the live order state responsive while historical event discovery
     // continues in the background (a shared order link has no creation block).
-    try {
-      const nextSnapshot = await readOrderSnapshot(publicClient, selectedAddress);
-      if (activityReadRef.current.address === normalizedAddress) setSnapshot(nextSnapshot);
-      setError('');
-    } catch (readError) { setError(errorMessage(readError)); }
+    const previousSnapshot = lastVerifiedSnapshotRef.current;
+    const recentlyVerified = previousSnapshot?.address === normalizedAddress && Date.now() - previousSnapshot.at < 25_000;
+    if (!recentlyVerified) {
+      try {
+        const nextSnapshot = await readOrderSnapshot(publicClient, selectedAddress);
+        if (activityReadRef.current.address === normalizedAddress) {
+          setSnapshot(nextSnapshot);
+          lastVerifiedSnapshotRef.current = { address: normalizedAddress, at: Date.now() };
+        }
+        setError('');
+      } catch (readError) { setError(errorMessage(readError)); }
+    }
     // Unknown creation blocks must never trigger a scan across the full
     // factory history. Wait for provenance verification to establish it.
     if (provenance !== 'verified' || factoryProof?.blockNumber === undefined) return;
@@ -216,8 +225,8 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
     })();
   }, [order?.blockNumber, selectedAddress, provenance, factoryProof?.blockNumber]);
   useEffect(() => { void refresh(); }, [refresh]);
-  useEffect(() => { const timer = window.setInterval(() => void refresh(), 12_000); return () => window.clearInterval(timer); }, [refresh]);
-  if (!selectedAddress || !snapshot) return <aside className="order-detail-v2 empty-detail-v2"><SectionMark index="ORDER" label={error ? 'READ ERROR' : 'SELECT A RECORD'} /><h2>{error ? <>Order detail<br /><span>unavailable.</span></> : <>The order view<br /><span>is waiting.</span></>}</h2><p>{error ? `Arc could not be reached. ${error}` : 'Select an order from the ledger to inspect immutable terms, state, roles, and the next permitted action.'}</p>{error && <button type="button" className="secondary-button empty-state-action" onClick={() => void refresh()}>RETRY</button>}</aside>;
+  useEffect(() => { const timer = window.setInterval(() => void refresh(), 30_000); return () => window.clearInterval(timer); }, [refresh]);
+  if (!selectedAddress || !snapshot) return <aside className="order-detail-v2 empty-detail-v2"><SectionMark index="ORDER" label={provenance === 'blocked' ? 'VERIFICATION UNAVAILABLE' : 'READING ORDER'} /><h2>{provenance === 'blocked' ? <>Order verification<br /><span>unavailable.</span></> : <>Checking this order<br /><span>on Arc.</span></>}</h2><p>{provenance === 'blocked' ? provenanceError : 'Checking the official factory record and live contract state. Wallet actions stay locked until verification succeeds.'}</p>{provenance === 'blocked' && <button type="button" className="secondary-button empty-state-action" onClick={() => window.location.reload()}>RETRY VERIFICATION</button>}</aside>;
   const role = roleFor(account, snapshot.buyer, snapshot.supplier, snapshot.arbiter);
   const now = BigInt(Math.floor(Date.now() / 1000));
   const fundingExpired = now > snapshot.fundingDeadline;
@@ -253,6 +262,7 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
       clearRecordedAction();
       if (receipt.status !== 'success') { setError('Arc confirmed this transaction reverted. No state was changed. Refresh the order before trying another action.'); return; }
       setTxHash(hash); setTxStage('idle');
+      lastVerifiedSnapshotRef.current = undefined;
       await refresh(); onRefresh();
     } catch (transactionError) {
       if (broadcastHash) {
@@ -268,7 +278,7 @@ export function OrderDetail({ account, order, walletClient, walletProvider, onRe
     try {
       const receipt = await publicClient.waitForTransactionReceipt({ hash: submittedHash });
       clearRecordedAction();
-      if (receipt.status === 'success') { setTxHash(submittedHash); setNotice(''); await refresh(); onRefresh(); }
+      if (receipt.status === 'success') { setTxHash(submittedHash); setNotice(''); lastVerifiedSnapshotRef.current = undefined; await refresh(); onRefresh(); }
       else { setError('Arc confirmed this transaction reverted. No state was changed.'); setNotice(''); }
     } catch { setNotice(pendingReceiptMessage()); } finally { setBusy(false); }
   };
