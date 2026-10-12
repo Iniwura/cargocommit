@@ -49,18 +49,6 @@ declare global {
   }
 }
 
-function arcReadProvider(provider: Eip1193Provider): Eip1193Provider {
-  return {
-    request: async (args) => {
-      if (args.method !== 'eth_chainId') {
-        const chainId = Number.parseInt(String(await provider.request({ method: 'eth_chainId' })), 16);
-        if (chainId !== ARC_CHAIN_ID) throw new Error('Injected wallet is not connected to Arc mainnet.');
-      }
-      return provider.request(args);
-    },
-  };
-}
-
 // Independent read-only mainnet providers. Never fall back to the wallet's
 // signing provider for contract/index reads: that provider may block or rate-limit
 // historical logs independently of the user's actual wallet connection.
