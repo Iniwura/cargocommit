@@ -484,9 +484,17 @@ function App() {
       }
     } catch (error) {
       if (!stillCurrent()) return;
-      setOrderReadError(errorMessage(error));
-      setOrderReadState(ordersRef.current.length ? 'partial' : 'error');
-      setOrderReadProgress('Arc paused this search. Retry resumes from the last verified block.');
+      if (indexedWalletRef.current === accountKey) {
+        // History succeeded. A failed OPTIONAL catch-up cannot invalidate
+        // existing orders or claim the entire register is unavailable.
+        setOrderReadError('');
+        setOrderReadState('partial');
+        setOrderReadProgress('Historical orders are available. Recent Arc updates could not be checked; refresh to try again.');
+      } else {
+        setOrderReadError(errorMessage(error));
+        setOrderReadState(ordersRef.current.length ? 'partial' : 'error');
+        setOrderReadProgress('The historical index and Arc reads are unavailable. Check the connection and retry.');
+      }
     } finally {
       if (stillCurrent()) {
         orderScanRunningRef.current = false;
