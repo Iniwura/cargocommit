@@ -514,3 +514,13 @@ export function restorePendingAction(raw: string | null, order: string): { actor
     return { actor: record.actor as Address, hash: record.hash as Hash };
   } catch { return undefined; }
 }
+
+/** One-block hint for official factory verification. Unknown or pre-deployment
+ * locations must fail closed instead of launching a full-chain browser scan.
+ */
+export function requireFactoryVerificationBlock(blockHint: bigint | undefined, deploymentBlock: bigint): bigint {
+  if (blockHint === undefined || blockHint < deploymentBlock) {
+    throw new Error('A valid factory creation block is required for verification.');
+  }
+  return blockHint;
+}
