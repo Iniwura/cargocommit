@@ -386,3 +386,11 @@ test('pending order actions survive reload only for the matching contract', () =
   assert.equal(model.restorePendingAction(JSON.stringify({ ...data, hash: '0x0' }), order), undefined);
   assert.equal(model.restorePendingAction('invalid json', order), undefined);
 });
+
+test('factory order verification always requires a specific deployment-or-later block', () => {
+  const deployment = 24_570_195n;
+  assert.equal(model.requireFactoryVerificationBlock(24_754_291n, deployment), 24_754_291n);
+  assert.equal(model.requireFactoryVerificationBlock(deployment, deployment), deployment);
+  assert.throws(() => model.requireFactoryVerificationBlock(undefined, deployment), /factory creation block/);
+  assert.throws(() => model.requireFactoryVerificationBlock(deployment - 1n, deployment), /factory creation block/);
+});
