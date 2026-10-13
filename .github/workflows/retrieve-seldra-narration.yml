@@ -1,0 +1,27 @@
+name: Retrieve Seldra Narration
+on:
+  push:
+    paths: ['.github/workflows/retrieve-seldra-narration.yml']
+    branches: [film/seldra-actual-interface]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  narration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch generated narration (no keys)
+        run: |
+          curl --location --fail --silent --show-error --max-time 45 \
+            -o seldra-narration.mp3 \
+            'https://www.aidocmaker.com/g0/audio?name=a47dc593a0a644fbb0d8444f84813ca0'
+          file seldra-narration.mp3
+          ffprobe -v error -show_entries format=duration,size -of json seldra-narration.mp3
+          test $(stat -c%s seldra-narration.mp3) -gt 20000
+      - name: Export narration
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seldra-premium-voiceover
+          path: seldra-narration.mp3
+          if-no-files-found: ignore
