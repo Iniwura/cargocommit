@@ -1,4 +1,4 @@
-import { encodeFunctionData, parseAbi } from 'viem';
+import { encodeFunctionData, parseAbi, createPublicClient, http } from 'viem';
 
 // Read-only Arc mainnet diagnostics, pinned to a documented Seldra order.
 // No wallet, private keys, API credentials, signing, or transaction broadcasts.
@@ -72,3 +72,16 @@ for (const endpoint of ENDPOINTS) {
 }
 console.log('\nPROBE_DONE',JSON.stringify({failedRequests:failures}));
 if (failures) process.exitCode=1;
+
+console.log('\nMULTICALL_ARC_MAINNET_TEST');
+try {
+  const chain = { id:5042, name:'Arc', nativeCurrency:{name:'USDC',symbol:'USDC',decimals:18},
+    rpcUrls:{default:{http:['https://arc.drpc.org']}} };
+  const client=createPublicClient({chain,transport:http('https://arc.drpc.org',{retryCount:0,timeout:9000})});
+  const vals=await client.multicall({contracts:selectors.map(v=>({address:ORDER,abi,functionName:v.split('(')[0]})),
+    multicallAddress:'0xcA11bde05977b3631167028862bE2a173976CA11', allowFailure:false});
+  console.log('MULTICALL_RESULT',JSON.stringify({count:vals.length,buyer:vals[0],status:String(vals[13]),invariant:vals[18],failed:false}));
+} catch(e) {
+  console.log('MULTICALL_RESULT',JSON.stringify({failed:true,name:e.name,message:String(e.shortMessage || e.message).slice(0,350)}));
+  process.exitCode=1;
+}
