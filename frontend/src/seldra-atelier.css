@@ -376,3 +376,22 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--signal); outlin
 @media (prefers-reduced-motion:reduce) {
   .order-focus-back, .orders-page-v2 .ledger-row, .orders-page-v2 .ledger-row em { transition:none; }
 }
+
+/* Recent-block sync is informational when the historical index loaded. */
+.order-history-notice {
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px;
+  margin:14px 0 22px; padding:14px 17px; border:1px solid var(--cc-faint);
+  background:#f2f2ec; color:var(--cc-ink);
+}
+.order-history-notice-marker { display:block; width:6px; height:6px; flex:0 0 6px; border-radius:50%; background:#8a907b; }
+.order-history-notice-copy { flex:1 1 300px; font:500 11px/1.6 var(--sans); color:#565951; }
+.order-history-retry {
+  margin-left:auto; padding:3px 0; border:0; border-bottom:1px solid currentColor;
+  background:transparent; color:var(--cc-ink); font:700 9px var(--mono);
+  white-space:nowrap; cursor:pointer;
+}
+.order-history-retry:hover { color:var(--signal); }
+@media (max-width:600px) {
+  .order-history-notice { padding:13px; }
+  .order-history-retry { margin-left:20px; }
+}
