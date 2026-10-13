@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 
 const base = process.env.SELDRA_SMOKE_URL;
-if (!base?.startsWith('https://')) throw new Error('SELDRA_SMOKE_URL must be an HTTPS preview URL');
+if (!base || !(base.startsWith('https://') || base.startsWith('http://127.0.0.1:'))) throw new Error('SELDRA_SMOKE_URL must be HTTPS or localhost');
 const root = base.replace(/\/$/, '');
 const address = '0x7BE2440da225495735957B4b206A4ab4998372Fa';
 const buyer = '0xd0dd02322AF812fC0dbDdC69f9a055FBBe2C6673';
