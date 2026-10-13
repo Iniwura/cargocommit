@@ -194,6 +194,13 @@ export function buildCreatedOrderReceipt(order: Address, transactionHash: Hash):
   return { order, transactionHash, state: 'PURCHASE ORDER CREATED', status: 'AWAITING SUPPLIER ACCEPTANCE', nextAction: 'SUPPLIER ACCEPTS' };
 }
 
+/** Canonical shareable route: list and detail always have distinct addresses. */
+export function orderDetailRoute(address: Address, blockNumber?: bigint): string {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) throw new Error('Invalid order address');
+  if (blockNumber !== undefined && blockNumber < 0n) throw new Error('Invalid order creation block');
+  return `#orders/${address}${blockNumber === undefined ? '' : `/${blockNumber}`}`;
+}
+
 export function orderAddressFromHash(hash: string): Address | undefined {
   const match = hash.match(/^#(?:order|orders)\/(0x[0-9a-fA-F]{40})(?:\/\d+)?\/?(?:$|\?)/);
   return match?.[1] as Address | undefined;
