@@ -60,6 +60,7 @@ for (const endpoint of ENDPOINTS) {
     ['latestBlock','eth_blockNumber',[]],
     ['orderBytecode','eth_getCode',[ORDER,'latest']],
     ['orderNativeBalance','eth_getBalance',[ORDER,'latest']],
+    ['multicall3Bytecode','eth_getCode',['0xcA11bde05977b3631167028862bE2a173976CA11','latest']],
     ['factoryCreationLogs','eth_getLogs',[{address:FACTORY,fromBlock:BLOCK,toBlock:BLOCK}]],
     ['creationTransaction','eth_getTransactionByHash',[CREATE_TX]],
   ]) console.log(JSON.stringify({name,...await rpc(endpoint,method,params)}));
