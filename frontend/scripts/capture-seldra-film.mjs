@@ -88,7 +88,9 @@ await track('create','#create-order',async(page,begin)=>{
  await page.getByRole('textbox',{name:'Arbiter wallet address'}).fill(arbiter);await sleep(850);
  await move(page,1010,580);await sleep(500);
  await page.getByRole('button',{name:/CONTINUE TO SETTLEMENT/}).click();await sleep(900);
- await page.locator('.wizard-step .input-unit-v2 input').first().fill('10000');await sleep(850);
+ const amountBefore = await page.locator('.wizard-step .input-unit-v2 input').first().inputValue();
+ if (!amountBefore.includes('10,000') || amountBefore.includes('1,000,010')) throw Error('DEFAULT_ORDER_AMOUNT_NOT_10000 ' + amountBefore);
+ await sleep(850);
  await page.locator('.split-quick-choices button').filter({hasText:'30 / 70'}).click();await sleep(1100);
  await smoothScroll(page,350);await sleep(750);
  await page.getByRole('button',{name:/CONTINUE TO DELIVERY/}).click();await sleep(750);
