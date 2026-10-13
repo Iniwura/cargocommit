@@ -15,6 +15,7 @@ const entries=[];
 const sleep=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
 const near=(x,y)=>({x,y});
 async function track(name,route,handler,{wallet=false,width=1440,height=900}={}){
+ if(process.env.FILM_SCENE && name!==process.env.FILM_SCENE)return;
  const ctx=await browser.newContext({viewport:{width,height},deviceScaleFactor:1,recordVideo:{dir,size:{width,height}},colorScheme:'light'});
  if(wallet)await ctx.addInitScript(({account})=>{
   window.ethereum={
@@ -96,7 +97,7 @@ await track('create','#create-order',async(page,begin)=>{
  await page.locator('.wizard-step input').nth(0).fill('PO-2026-0042');await sleep(450);
  await page.locator('.wizard-step input').nth(1).fill('DEMO-SHIPMENT-REFERENCE');await sleep(650);
  await page.getByRole('button',{name:/GENERATE ORDER PREVIEW/}).click();await sleep(1750);
-});
+},{wallet:true});
 await track('register','#orders',async(page,begin)=>{
  await page.locator('.ledger-row').first().waitFor({timeout:45000});
  await sleep(500);begin();
