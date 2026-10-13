@@ -47,8 +47,12 @@ async function verifiedDetail(page, suffix) {
   await page.locator('.order-focus-page').waitFor({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Back to all orders' }).waitFor({ timeout: 15_000 });
   await page.getByText('VERIFIED / OFFICIAL FACTORY', { exact: false }).waitFor({ timeout: 45_000 });
-  await page.locator('.order-current-state').getByText('CREATED', { exact: true }).waitFor({ timeout: 25_000 });
   await page.screenshot({ path: 'smoke-artifacts/' + suffix + '.png', fullPage: true });
+  const state = page.locator('.order-current-state');
+  await state.waitFor({ state: 'visible', timeout: 20_000 });
+  const status = await state.innerText();
+  console.log('VERIFIED_DETAIL_STATUS', suffix, JSON.stringify(status.slice(0, 500)));
+  if (!status.toUpperCase().includes('CREATED')) throw new Error('Verified order did not show CREATED: ' + status.slice(0, 300));
 }
 
 try {
