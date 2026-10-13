@@ -394,3 +394,18 @@ test('factory order verification always requires a specific deployment-or-later 
   assert.throws(() => model.requireFactoryVerificationBlock(undefined, deployment), /factory creation block/);
   assert.throws(() => model.requireFactoryVerificationBlock(deployment - 1n, deployment), /factory creation block/);
 });
+
+test('order detail route navigates directly with a shareable factory block hint', () => {
+  const address = '0x7BE2440da225495735957B4b206A4ab4998372Fa';
+  const direct = model.orderDetailRoute(address, 24754291n);
+  assert.equal(direct, '#orders/' + address + '/24754291');
+  assert.equal(model.orderAddressFromHash(direct), address);
+  assert.equal(model.orderBlockHintFromHash(direct), 24754291n);
+  const withoutHint = model.orderDetailRoute(address);
+  assert.equal(withoutHint, '#orders/' + address);
+  assert.equal(model.orderAddressFromHash(withoutHint), address);
+  assert.equal(model.orderAddressFromHash('#orders'), undefined);
+  assert.equal(model.orderAddressFromHash('#order/' + address), address);
+  assert.throws(() => model.orderDetailRoute('0x123'), /order address/);
+  assert.throws(() => model.orderDetailRoute(address, -1n), /creation block/);
+});
