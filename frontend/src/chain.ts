@@ -52,11 +52,15 @@ declare global {
 // Independent read-only mainnet providers. Never fall back to the wallet's
 // signing provider for contract/index reads: that provider may block or rate-limit
 // historical logs independently of the user's actual wallet connection.
-const ARC_READ_FALLBACK = 'https://arc-rpc.publicnode.com';
+const ARC_ARCHIVE_RPC = 'https://arc.drpc.org';
 function readOnlyTransport(timeout: number) {
+  // Mainnet probe 2026-10-13: dRPC served archived OrderCreated and all
+  // 22 getters; Circle public RPC returned 429 under burst load; PublicNode
+  // returned 403 for historical eth_getLogs without a personal token.
+  // Both listed providers support historical event verification.
   return fallback([
+    http(ARC_ARCHIVE_RPC, { timeout, retryCount: 0 }),
     http(ARC_RPC, { timeout, retryCount: 0 }),
-    http(ARC_READ_FALLBACK, { timeout, retryCount: 0 }),
   ], { retryCount: 0 });
 }
 export const publicClient = createPublicClient({ chain: arcMainnet, transport: readOnlyTransport(8_000) });
@@ -229,15 +233,14 @@ export async function readOrderSnapshot(client: PublicClient, address: Address) 
     'termsHash', 'status', 'outcome', 'reserveRemaining', 'shipmentEvidenceHash', 'disputeReasonHash', 'accountingInvariant',
     'acceptedAt', 'fundedAt', 'shipmentSubmittedAt',
   ] as const;
-  // 22 parallel eth_call requests can overwhelm a shared RPC or wallet proxy.
-  // Four bounded concurrent reads trade a little latency for repeatable results.
-  const values: unknown[] = [];
-  for (let i = 0; i < functionNames.length; i += 4) {
-    const group = await Promise.all(functionNames.slice(i, i + 4).map(
-      (functionName) => client.readContract({ address, abi: orderAbi, functionName } as never),
-    ));
-    values.push(...group);
-  }
+  // Arc's verified Multicall3 deployment reduces 22 RPC calls to one
+  // aggregate3 eth_call. Fail closed if any getter fails; wallet writes still
+  // independently check live contract terms, provenance and the signer.
+  const values = await client.multicall({
+    contracts: functionNames.map((functionName) => ({ address, abi: orderAbi, functionName })),
+    multicallAddress: '0xcA11bde05977b3631167028862bE2a173976CA11',
+    allowFailure: false,
+  });
   return {
     buyer: values[0] as Address,
     supplier: values[1] as Address,
