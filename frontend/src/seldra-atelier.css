@@ -309,3 +309,70 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--signal); outlin
   .hero-v2.is-in .purchase-object { animation:none !important; }
   .ledger-row, [data-reveal] { transition:none; }
 }
+
+/* SELDRA ORDER NAVIGATION / RELEASE POLISH
+   The ledger is the index. Selecting a row opens its own shareable reading view. */
+.order-focus-page { padding-top:clamp(30px,4.5vw,65px); padding-bottom:clamp(85px,10vw,155px); }
+.order-focus-heading { border-bottom:1px solid var(--cc-ink); }
+.order-focus-back {
+  border:0; border-bottom:1px solid var(--cc-ink); padding:5px 0 7px;
+  background:transparent; color:var(--cc-ink);
+  font:700 10px var(--mono); letter-spacing:.045em; cursor:pointer;
+  transition:color .18s, border-color .18s;
+}
+.order-focus-back:hover { color:var(--signal); border-color:var(--signal); }
+.order-focus-heading-main {
+  display:grid; grid-template-columns:minmax(0,1.2fr) minmax(230px,.6fr);
+  column-gap:clamp(20px,8vw,120px); align-items:end; padding:40px 0 32px;
+}
+.order-focus-heading-main h1 {
+  margin:25px 0 0; font:500 clamp(54px,7vw,114px)/.89 var(--sans);
+  letter-spacing:-.078em; color:var(--cc-ink);
+}
+.order-focus-heading-main h1 span { color:var(--signal); font:italic 1.02em var(--serif); letter-spacing:-.055em; }
+.order-focus-heading-main p {
+  margin:0 0 7px; max-width:400px; color:var(--cc-grey);
+  font:500 14px/1.75 var(--sans);
+}
+.order-focus-meta { display:flex; justify-content:space-between; gap:20px; padding:12px 0 15px; }
+.order-focus-meta span { font:500 9px var(--mono); letter-spacing:.045em; color:var(--cc-grey); }
+.order-focus-detail { margin-top:37px; }
+.order-focus-detail .order-detail-v2 {
+  width:100%; max-width:1050px;
+  padding:clamp(22px,3vw,46px);
+  box-shadow:10px 12px 0 #16171412;
+}
+.order-focus-detail .order-detail-top h2 { font-size:clamp(60px,8vw,122px); }
+.orders-page-v2 .filter-row-v2 { margin-top:clamp(30px,4vw,52px); }
+.order-register-guide {
+  display:flex; justify-content:space-between; align-items:center; gap:18px;
+  padding:18px 0 15px; color:var(--cc-grey);
+  font:500 9px/1.6 var(--mono); letter-spacing:.025em;
+}
+.order-register-guide span:last-child { color:var(--signal); font-weight:700; white-space:nowrap; }
+.orders-page-v2 .ledger-row {
+  cursor:pointer; position:relative;
+  transition:background .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.orders-page-v2 .ledger-row:hover {
+  background:#fff1eb; transform:translateX(2px); box-shadow:inset 3px 0 0 var(--signal);
+}
+.orders-page-v2 .ledger-row:focus-visible { outline:2px solid var(--signal); outline-offset:3px; }
+.orders-page-v2 .ledger-row em { color:var(--signal); font-size:20px; font-style:normal; transition:transform .18s ease; }
+.orders-page-v2 .ledger-row:hover em, .orders-page-v2 .ledger-row:focus-visible em { transform:translate(3px,-3px); }
+.orders-page-v2 .ledger-state small, .orders-page-v2 .ledger-deadline small { font-size:9px; line-height:1.6; }
+@media (max-width:760px) {
+  .order-focus-page { padding-top:27px; }
+  .order-focus-heading-main { display:block; padding:34px 0 24px; }
+  .order-focus-heading-main h1 { font-size:clamp(47px,9.4vw,76px); }
+  .order-focus-heading-main p { margin-top:22px; max-width:520px; }
+  .order-focus-meta { flex-wrap:wrap; gap:8px; }
+  .order-focus-detail { margin-top:25px; }
+  .order-focus-detail .order-detail-v2 { padding:21px; box-shadow:6px 8px 0 #16171412; }
+  .order-focus-detail .order-detail-top h2 { font-size:clamp(55px,12vw,88px); }
+  .order-register-guide { gap:9px; font-size:8px; }
+  .order-register-guide span:last-child { display:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .order-focus-back, .orders-page-v2 .ledger-row, .orders-page-v2 .ledger-row em { transition:none; }
+}
