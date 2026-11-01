@@ -1,0 +1,5 @@
+Slither 0.11.x, run on contracts/SeldraOrder.sol and contracts/SeldraFactory.sol before the final trivial edits (see DEVELOPMENT_RECORD.md).
+High: 0   Medium: 1   Low: 11   Informational: 1
+Medium  incorrect-equality : `amount == 0` early return in SeldraOrder._pay. Benign zero-value skip. Accepted.
+Low     timestamp (x11)    : deadline comparisons against block.timestamp. Inherent to the product (deadlines are the design). Accepted.
+Info    assembly           : SeldraOrder._send, a raw call that never copies return data (return-bomb defence). Accepted, flagged for the independent auditor.

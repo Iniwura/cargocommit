@@ -1,0 +1,30 @@
+[0.03ms] ".env"
+[0m[1mbun audit [0m[2mv1.3.14 (0d9b296a)[0m
+decode-uri-component  <=0.5.0
+  wagmi › @wagmi/connectors › @walletconnect/ethereum-provider › @walletconnect/utils › query-string › decode-uri-component
+  high: decode-uri-component vulnerable to denial of service via quadratic replacement of percent-encoded runs - https://github.com/advisories/GHSA-qr28-fpjm-wq7f
+  moderate: decode-uri-component: Denial of service via exponential decoding of malformed percent-encoded input - https://github.com/advisories/GHSA-vcc3-ghjq-m6fr
+
+ws  >=8.0.0 <8.20.1
+  viem › isows › ws
+  wagmi › @wagmi/connectors › @walletconnect/ethereum-provider › @walletconnect/sign-client › @walletconnect/core › @walletconnect/jsonrpc-ws-connection › ws
+  moderate: ws: Uninitialized memory disclosure - https://github.com/advisories/GHSA-58qx-3vcg-4xpx
+  high: ws: Memory exhaustion DoS from tiny fragments and data chunks - https://github.com/advisories/GHSA-96hv-2xvq-fx4p
+
+zod  <4.6.6
+  viem › ox › abitype › zod
+  wagmi › @wagmi/connectors › @base-org/account › @coinbase/cdp-sdk › zod
+  high: Zod can exhaust memory while validating oversized constrained collections - https://github.com/advisories/GHSA-mrhx-c7xc-m3w5
+
+uuid  <11.1.1
+  wagmi › @wagmi/connectors › @metamask/sdk › uuid
+  moderate: uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided - https://github.com/advisories/GHSA-w5hq-g745-h8pq
+
+6 vulnerabilities (3 high, 3 moderate)
+
+To update all dependencies to the latest compatible versions:
+  bun update
+
+To update all dependencies to the latest versions (including breaking changes):
+  bun update --latest
+

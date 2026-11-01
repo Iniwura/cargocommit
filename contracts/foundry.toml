@@ -1,0 +1,23 @@
+# Arc Studio implementation of Seldra. Self-contained Foundry project.
+# The repository root foundry.toml belongs to the original CargoCommit code and is untouched.
+[profile.default]
+src = "."
+test = "test"
+out = "out"
+cache_path = "cache"
+libs = ["../lib"]
+remappings = ["forge-std/=../lib/forge-std/src/"]
+solc_version = "0.8.35"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+ffi = false
+
+[profile.default.fuzz]
+runs = 512
+
+[profile.default.invariant]
+runs = 128
+depth = 64
+fail_on_revert = false

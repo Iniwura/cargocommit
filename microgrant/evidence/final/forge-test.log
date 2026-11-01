@@ -1,0 +1,260 @@
+No files changed, compilation skipped
+
+Ran 16 tests for test/SeldraOrder.Flow.t.sol:SeldraOrderFlowTest
+[PASS] test_AccountingInvariantView() (gas: 156851)
+[PASS] test_Cancel_AnyoneAfterFundingDeadline() (gas: 101329)
+[PASS] test_Cancel_ByBuyerFromAccepted() (gas: 96581)
+[PASS] test_Cancel_ByBuyerFromCreated() (gas: 78356)
+[PASS] test_Cancel_ReturnsForcedExcessToBuyer() (gas: 76132)
+[PASS] test_DecisionTimeout_SupplierClaims() (gas: 227269)
+[PASS] test_Dispute_Fallback() (gas: 265989)
+[PASS] test_Dispute_FallbackBpsZeroAndFull() (gas: 4334534)
+[PASS] test_Dispute_ResolveExtremes() (gas: 2425925)
+[PASS] test_Dispute_ResolvedByArbiter() (gas: 272602)
+[PASS] test_FundCallsWithWrongValue() (gas: 93519)
+[PASS] test_HappyPath_EndToEnd() (gas: 249435)
+[PASS] test_MissingCommitments() (gas: 211941)
+[PASS] test_OrderSummary_ReflectsLifecycle() (gas: 295891)
+[PASS] test_ResolveDispute_PayoutAboveReserveReverts() (gas: 237694)
+[PASS] test_ShipmentDeadlineRefund() (gas: 181135)
+Suite result: ok. 16 passed; 0 failed; 0 skipped; finished in 3.19ms (2.11ms CPU time)
+
+Ran 32 tests for test/SeldraOrder.Adversarial.t.sol:SeldraOrderAdversarialTest
+[PASS] test_BothRejecting_BothCreditedAndIndependentlyWithdrawable() (gas: 3027976)
+[PASS] test_DirectTransfersAndUnknownCalls_AlwaysRevert_InEveryStatus() (gas: 12035402)
+[PASS] test_DoubleSettlement_ImpossibleOnEveryPath() (gas: 12386195)
+[PASS] test_ForcedEth_AfterSettlement_DoesNotBreakPendingWithdraw() (gas: 2973008)
+[PASS] test_ForcedEth_AfterSettlement_StaysStuck_NoOneCanTakeIt() (gas: 294967)
+[PASS] test_ForcedEth_BeforeFunding_ReturnsToBuyerAtSettlement() (gas: 231027)
+[PASS] test_ForcedEth_DisputeFallback_ExcessToBuyer() (gas: 255403)
+[PASS] test_ForcedEth_DuringDispute_SupplierGetsNoneOfIt() (gas: 259019)
+[PASS] test_ForcedEth_DuringFunded_RefundPathReturnsExcessToo() (gas: 173258)
+[PASS] test_ForcedEth_RealSelfdestruct_MidLifecycle() (gas: 267087)
+[PASS] test_ForcedEth_RealSelfdestruct_ReturnsToBuyerOnCancel() (gas: 115286)
+[PASS] test_ForcedEth_WithPendingCredit_ExcessGoesToBuyerNotCreditPool() (gas: 2950534)
+[PASS] test_FrontRun_ApproveThenDispute_DisputeFails() (gas: 224993)
+[PASS] test_FrontRun_ArbiterCannotResolveBeforeDispute() (gas: 204899)
+[PASS] test_FrontRun_AtDecisionDeadline_BuyerWinsOverSupplierTimeout() (gas: 235270)
+[PASS] test_FrontRun_DisputeThenApprove_ApproveFails() (gas: 242063)
+[PASS] test_FrontRun_OneSecondLater_SupplierWinsOverLateDispute() (gas: 231209)
+[PASS] test_FrontRun_SupplierCannotAcceptAfterFundingOrCancellation() (gas: 153168)
+[PASS] test_FrontRun_SupplierCannotResubmitEvidenceAfterDispute() (gas: 232426)
+[PASS] test_Fund_BeforeAcceptance_Reverts() (gas: 24928)
+[PASS] test_Fund_Twice_Reverts_NoDoublePayment() (gas: 165482)
+[PASS] test_FundingCannotBeCancelledByBuyerOnceFunded() (gas: 165853)
+[PASS] test_GasBurningBuyerAndSupplier_StillSettles() (gas: 1040495460)
+[PASS] test_GasBurningSupplier_SettlementBoundedAndCredited() (gas: 3206620)
+[PASS] test_PendingCredit_AccumulatesAcrossMultipleDeferredPayouts() (gas: 3000662)
+[PASS] test_ReturnBomb_Huge_CannotBlockSettlement() (gas: 7336164)
+[PASS] test_ReturnBomb_Small_PayoutSucceedsDirectly() (gas: 2964234)
+[PASS] test_RevertingBuyer_RefundCreditedAndWithdrawable() (gas: 2923404)
+[PASS] test_RevertingSupplier_DepositCreditedAndFundingStillSucceeds() (gas: 2936458)
+[PASS] test_RevertingSupplier_SettlementNotBlocked_WithdrawLater() (gas: 2959540)
+[PASS] test_TermsUnchangedThroughLifecycle() (gas: 265070)
+[PASS] test_ValueOnNonPayableFunctions_Reverts() (gas: 243651)
+Suite result: ok. 32 passed; 0 failed; 0 skipped; finished in 8.11ms (6.93ms CPU time)
+
+Ran 21 tests for test/SeldraOrder.Constructor.t.sol:SeldraOrderConstructorTest
+[PASS] testFuzz_AmountMultipleRule(uint256) (runs: 512, μ: 246279, ~: 84984)
+[PASS] test_Amount_MinimumUnitAccepted() (gas: 1917601)
+[PASS] test_DepositBps_EdgesAccepted() (gas: 3793039)
+[PASS] test_FallbackBps_ZeroAndFullAccepted() (gas: 3790814)
+[PASS] test_FundingDeadline_NowPlusOneAccepted() (gas: 1916327)
+[PASS] test_Horizon_Exactly365DaysAccepted_Plus1Reverts() (gas: 1980648)
+[PASS] test_Immutable_NoSettersExist() (gas: 104669)
+[PASS] test_Immutable_TermsStoredExactly() (gas: 46221)
+[PASS] test_Revert_AmountNotMultipleOf1e12() (gas: 211180)
+[PASS] test_Revert_AmountOverflowingDepositMath() (gas: 84686)
+[PASS] test_Revert_DeadlineOrdering() (gas: 408225)
+[PASS] test_Revert_DepositBpsBounds() (gas: 275281)
+[PASS] test_Revert_DuplicateAddresses() (gas: 212768)
+[PASS] test_Revert_FallbackBpsAbove10000() (gas: 148072)
+[PASS] test_Revert_FundingDeadlineNotInFuture() (gas: 211981)
+[PASS] test_Revert_HugeDeadlines() (gas: 149104)
+[PASS] test_Revert_ZeroAmount() (gas: 84547)
+[PASS] test_Revert_ZeroArbiter() (gas: 82101)
+[PASS] test_Revert_ZeroBuyer_Direct() (gas: 75736)
+[PASS] test_Revert_ZeroSupplier() (gas: 82091)
+[PASS] test_StrictlyIncreasingByOneSecondAccepted() (gas: 1916597)
+Suite result: ok. 21 passed; 0 failed; 0 skipped; finished in 46.06ms (42.09ms CPU time)
+
+Ran 14 tests for test/SeldraFactory.t.sol:SeldraFactoryTest
+[PASS] testFuzz_BuyerIsAlwaysCaller(address) (runs: 512, μ: 1934972, ~: 1934972)
+[PASS] test_CreateOrder_CallerCannotBeSupplierOrArbiter() (gas: 149377)
+[PASS] test_CreateOrder_DeploysWithCallerAsBuyerAndRegisters() (gas: 34779)
+[PASS] test_CreateOrder_EmitsOrderCreatedWithTermsHash() (gas: 1923338)
+[PASS] test_CreateOrder_ReturnsAddressMatchingRegistry() (gas: 1919943)
+[PASS] test_Factory_RejectsDirectValueAndUnknownCalls() (gas: 16267)
+[PASS] test_FailedCreationLeavesRegistryUntouched() (gas: 91603)
+[PASS] test_Registry_IsOrderFalseForUnregisteredOrder() (gas: 1784899)
+[PASS] test_Registry_OutOfBoundsReverts() (gas: 24218)
+[PASS] test_Registry_PerParticipantIndexes() (gas: 1962288)
+[PASS] test_SpamOrders_ListedForVictimButCannotMoveVictimFunds() (gas: 19074128)
+[PASS] test_SpamOrders_NeverTouchVictimEvenWhenVictimIgnoresThem() (gas: 2029576)
+[PASS] test_TermsHashDiffersBetweenOrdersWithSameTerms() (gas: 1921427)
+[PASS] test_ThirdParty_CannotCreateOrderNamingVictimAsBuyer() (gas: 2007444)
+Suite result: ok. 14 passed; 0 failed; 0 skipped; finished in 76.38ms (75.45ms CPU time)
+
+Ran 26 tests for test/SeldraOrder.Deadlines.t.sol:SeldraOrderDeadlinesTest
+[PASS] testFuzz_DecisionWindow_BuyerXorSupplier(uint256) (runs: 512, μ: 222782, ~: 221984)
+[PASS] testFuzz_DisputeWindow_ExactlyOneExitAvailable(uint256) (runs: 512, μ: 257523, ~: 259801)
+[PASS] testFuzz_ShipmentWindow_ExactlyOneExitAvailable(uint256) (runs: 512, μ: 183125, ~: 180037)
+[PASS] test_AcceptTerms_AfterFundingDeadline_Reverts() (gas: 15767)
+[PASS] test_AcceptTerms_AtFundingDeadline_Ok() (gas: 58638)
+[PASS] test_Approve_AfterDecisionDeadline_Reverts() (gas: 207329)
+[PASS] test_Approve_AtDecisionDeadline_Ok() (gas: 221193)
+[PASS] test_Cancel_Buyer_AtAndAfterFundingDeadline_Ok() (gas: 2027571)
+[PASS] test_Cancel_NonBuyer_AfterFundingDeadline_Ok() (gas: 66815)
+[PASS] test_Cancel_NonBuyer_AtFundingDeadline_Reverts() (gas: 31681)
+[PASS] test_DecisionTimeout_AfterDecisionDeadline_Ok() (gas: 219106)
+[PASS] test_DecisionTimeout_AtDecisionDeadline_Reverts() (gas: 207347)
+[PASS] test_Fallback_AfterDisputeDeadline_Ok() (gas: 251050)
+[PASS] test_Fallback_AtDisputeDeadline_Reverts() (gas: 231249)
+[PASS] test_Fund_AfterFundingDeadline_Reverts() (gas: 73607)
+[PASS] test_Fund_AtFundingDeadline_Ok() (gas: 152903)
+[PASS] test_OpenDispute_AfterDecisionDeadline_Reverts() (gas: 207402)
+[PASS] test_OpenDispute_AtDecisionDeadline_Ok() (gas: 228117)
+[PASS] test_ResolveDispute_AfterDisputeDeadline_Reverts() (gas: 233916)
+[PASS] test_ResolveDispute_AtDisputeDeadline_Ok() (gas: 255076)
+[PASS] test_ShipmentRefund_AfterShipmentDeadline_Ok() (gas: 171243)
+[PASS] test_ShipmentRefund_AtShipmentDeadline_Reverts() (gas: 158542)
+[PASS] test_ShipmentRefund_BlockedOnceEvidenceSubmitted() (gas: 207309)
+[PASS] test_SubmitEvidence_AfterShipmentDeadline_Reverts() (gas: 158696)
+[PASS] test_SubmitEvidence_AtShipmentDeadline_Ok() (gas: 201579)
+[PASS] test_UnfundedOrderAfterDeadline_CannotBeFundedOrAccepted_ButCanBeClosed() (gas: 72661)
+Suite result: ok. 26 passed; 0 failed; 0 skipped; finished in 107.51ms (106.64ms CPU time)
+
+Ran 17 tests for test/SeldraOrder.Reentrancy.t.sol:SeldraOrderReentrancyTest
+[PASS] test_ReentrantArbiter_AllRecipientsHostile() (gas: 6256879)
+[PASS] test_ReentrantArbiter_NeverReceivesValueNorReenters() (gas: 2593376)
+[PASS] test_ReentrantBuyer_ApprovePath_ReceivesOnlyForcedExcess() (gas: 2999700)
+[PASS] test_ReentrantBuyer_CancelPath_WithForcedExcess() (gas: 2875231)
+[PASS] test_ReentrantBuyer_FallbackPath() (gas: 3027018)
+[PASS] test_ReentrantBuyer_RefundPath() (gas: 2944702)
+[PASS] test_ReentrantBuyer_ResolvePath() (gas: 3028636)
+[PASS] test_ReentrantRecipient_RevertsAfterReenter_CreditsPending() (gas: 3076543)
+[PASS] test_ReentrantSupplier_ApprovePath() (gas: 3007298)
+[PASS] test_ReentrantSupplier_DepositPaymentOnFund() (gas: 2925263)
+[PASS] test_ReentrantSupplier_FallbackPath() (gas: 3039763)
+[PASS] test_ReentrantSupplier_RefundPath_OnlyDepositHook() (gas: 2943705)
+[PASS] test_ReentrantSupplier_ResolvePath() (gas: 3041526)
+[PASS] test_ReentrantSupplier_TimeoutPath() (gas: 3006262)
+[PASS] test_ReentrantWithdraw_DoesNotDrainOtherCredits() (gas: 3108279)
+[PASS] test_ReentrantWithdraw_RevertingHookKeepsCredit() (gas: 2981303)
+[PASS] test_ReentrantWithdraw_SupplierCannotDoubleWithdraw() (gas: 3014733)
+Suite result: ok. 17 passed; 0 failed; 0 skipped; finished in 5.85ms (4.96ms CPU time)
+
+Ran 15 tests for test/SeldraOrder.Roles.t.sol:SeldraOrderRolesTest
+[PASS] test_Role_AcceptTerms_OnlySupplier() (gas: 7611161)
+[PASS] test_Role_ApproveRelease_OnlyBuyer() (gas: 8245996)
+[PASS] test_Role_Cancel_AnyoneAfterFundingDeadline() (gas: 7757801)
+[PASS] test_Role_Cancel_NonBuyerBeforeFundingDeadlineRejected() (gas: 15359903)
+[PASS] test_Role_ClaimDecisionTimeout_OnlySupplier() (gas: 8246450)
+[PASS] test_Role_ClaimDisputeFallback_AnyoneAfterDeadline() (gas: 8424167)
+[PASS] test_Role_ClaimShipmentRefund_OnlyBuyer() (gas: 8051146)
+[PASS] test_Role_Fund_OnlyBuyer() (gas: 7841956)
+[PASS] test_Role_OpenDispute_OnlyBuyer() (gas: 8257548)
+[PASS] test_Role_ResolveDispute_OnlyArbiter() (gas: 8363276)
+[PASS] test_Role_RolesAreNotInterchangeableAcrossOrders() (gas: 2035331)
+[PASS] test_Role_SubmitEvidence_OnlySupplier() (gas: 8083831)
+[PASS] test_Role_Withdraw_NothingForAnyoneWithoutCredit() (gas: 185111)
+[PASS] test_Settled_IsTerminal_NoFunctionWorksAgain() (gas: 287432)
+[PASS] test_WrongStatus_EveryFunctionRevertsInvalidStatus() (gas: 96636840)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 13.60ms (12.89ms CPU time)
+
+Ran 8 tests for test/SeldraOrder.Fuzz.t.sol:SeldraOrderFuzzTest
+[PASS] testFuzz_ArbiterSplit_ExactAndBounded(uint256) (runs: 512, μ: 246808, ~: 256978)
+[PASS] testFuzz_Conservation_AnyTermsPathAndRecipients((uint256,uint16,uint16,uint8,uint256,uint256,uint8,uint8,uint8)) (runs: 512, μ: 3031133, ~: 3013311)
+[PASS] testFuzz_DepositMath(uint256,uint16) (runs: 512, μ: 1919673, ~: 1919831)
+[PASS] testFuzz_EOA_SplitsSumToOrderAmount(uint256,uint16,uint16,uint256,uint8) (runs: 512, μ: 2158719, ~: 2160998)
+[PASS] testFuzz_FallbackMath(uint16,uint256,uint16) (runs: 512, μ: 2156825, ~: 2155250)
+[PASS] testFuzz_ForcedEthNeverReachesSupplierOrArbiter(uint256,uint8,uint8) (runs: 512, μ: 139541, ~: 185617)
+[PASS] testFuzz_Fund_OnlyExactValue(uint256) (runs: 512, μ: 71551, ~: 71566)
+[PASS] testFuzz_Stranger_CannotCallAnyRestrictedFunction(address,uint256) (runs: 512, μ: 256671, ~: 256918)
+Suite result: ok. 8 passed; 0 failed; 0 skipped; finished in 12.31s (12.59s CPU time)
+
+Ran 5 tests for test/SeldraOrder.Invariant.t.sol:SeldraOrderInvariantTest
+[PASS] invariant_BalanceCoversReserveAndPending() (runs: 256, calls: 30720, reverts: 0)
+
+╭---------------+----------+-------+---------+----------╮
+| Contract      | Selector | Calls | Reverts | Discards |
++=======================================================+
+| SeldraHandler | act      | 6108  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | advance  | 6267  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | force    | 6162  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | setMode  | 6107  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | warp     | 6076  | 0       | 0        |
+╰---------------+----------+-------+---------+----------╯
+
+[PASS] invariant_NoEthLeavesExceptToBuyerSupplierOrPending() (runs: 256, calls: 30720, reverts: 0)
+
+╭---------------+----------+-------+---------+----------╮
+| Contract      | Selector | Calls | Reverts | Discards |
++=======================================================+
+| SeldraHandler | act      | 6108  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | advance  | 6267  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | force    | 6162  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | setMode  | 6107  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | warp     | 6076  | 0       | 0        |
+╰---------------+----------+-------+---------+----------╯
+
+[PASS] invariant_SettledImpliesNoReserve_AndExcessSweptToBuyer() (runs: 256, calls: 30720, reverts: 0)
+
+╭---------------+----------+-------+---------+----------╮
+| Contract      | Selector | Calls | Reverts | Discards |
++=======================================================+
+| SeldraHandler | act      | 6108  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | advance  | 6267  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | force    | 6162  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | setMode  | 6107  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | warp     | 6076  | 0       | 0        |
+╰---------------+----------+-------+---------+----------╯
+
+[PASS] invariant_StatusOnlyMovesForward_AndHostileRecipientsNeverReenter() (runs: 256, calls: 30720, reverts: 0)
+
+╭---------------+----------+-------+---------+----------╮
+| Contract      | Selector | Calls | Reverts | Discards |
++=======================================================+
+| SeldraHandler | act      | 6108  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | advance  | 6267  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | force    | 6162  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | setMode  | 6107  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | warp     | 6076  | 0       | 0        |
+╰---------------+----------+-------+---------+----------╯
+
+[PASS] invariant_TermsNeverChange() (runs: 256, calls: 30720, reverts: 0)
+
+╭---------------+----------+-------+---------+----------╮
+| Contract      | Selector | Calls | Reverts | Discards |
++=======================================================+
+| SeldraHandler | act      | 6108  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | advance  | 6267  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | force    | 6162  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | setMode  | 6107  | 0       | 0        |
+|---------------+----------+-------+---------+----------|
+| SeldraHandler | warp     | 6076  | 0       | 0        |
+╰---------------+----------+-------+---------+----------╯
+
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 12.31s (24.23s CPU time)
+
+Ran 9 test suites in 12.32s (24.88s CPU time): 154 tests passed, 0 failed, 0 skipped (154 total tests)
+exit 0

@@ -1,0 +1,4 @@
+out/
+cache/
+# Written by the Arc Studio deploy tool; contains an internal deployer wallet id. Deployment facts live in microgrant/.
+contract-metadata/

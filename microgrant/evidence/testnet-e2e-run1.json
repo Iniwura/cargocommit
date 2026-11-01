@@ -1,0 +1,353 @@
+{
+  "chainId": 5042002,
+  "factory": "0x1ddac1a17d437a43ba09591d338954516721f0a7",
+  "participants": {
+    "buyer": "0x36C7613B4bD00fb50738AcEf777aA80F04315EA4",
+    "supplier": "0x36F80f259B7f6506fD07aD310e1072Cd176542E0",
+    "arbiter": "0xa744d578520727aBAbBFEdAf0B1Dc2485E778370"
+  },
+  "orders": {
+    "A": "0xB60079b481f6037BEF23b4fC99523Eb0165fe0ca",
+    "B": "0x9dE5850170A0D02c451319CF1123bD31A04CaF7c",
+    "C": "0x69E374d846F06A331334E0B51362f96d3d8f5891",
+    "D": "0x775b348829752a94A883545A1e85b80819D78bbF"
+  },
+  "summary": {
+    "total": 52,
+    "failed": 1
+  },
+  "results": [
+    {
+      "step": "buyer sends 0.05 gas USDC to supplier",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xd786b0fa9596780fe6be8a779d0d31b21ebce836b4d8ef45fa5053c4d66c7452"
+    },
+    {
+      "step": "buyer sends 0.05 gas USDC to arbiter",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0x10244cef065e8dcdfad6c3d8e7c8cfa77a29ae6379e399c33aa19bda9333a645"
+    },
+    {
+      "step": "A happy path: buyer creates order",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0x91d36fc348d26b3afda0c9c0424ec3efda257419f19e36f5e0986e6ff3e25577",
+      "gasUsed": "1983530",
+      "block": "70178966"
+    },
+    {
+      "step": "A happy path: factory registers the buyer as msg.sender",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "A: arbiter cannot accept terms",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected NotSupplier, got NotSupplier"
+    },
+    {
+      "step": "A: buyer cannot fund before acceptance",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected InvalidStatus, got InvalidStatus"
+    },
+    {
+      "step": "A: supplier accepts terms",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xda28996d69a3f3968b7e9b9ff8da66fcf9df87a11aea511562fa562e1f63d339",
+      "gasUsed": "67208",
+      "block": "70178974"
+    },
+    {
+      "step": "A: supplier cannot fund",
+      "kind": "expected-revert",
+      "ok": false,
+      "detail": "expected NotBuyer, got other"
+    },
+    {
+      "step": "A: wrong funding amount rejected",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected FundingAmountMismatch, got FundingAmountMismatch"
+    },
+    {
+      "step": "A: buyer funds 0.10 USDC",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0x8bed4004914181a7c6f0d13ff262782b2eab2204d17d5322bb63d549baf30130",
+      "gasUsed": "86023",
+      "block": "70178983"
+    },
+    {
+      "step": "A: supplier received the 30% deposit (0.03 USDC) at funding",
+      "kind": "check",
+      "ok": true,
+      "detail": "delta 30000000000000000"
+    },
+    {
+      "step": "A: reserve 0.07 USDC protected in the order",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "A: buyer cannot approve before evidence",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected InvalidStatus, got InvalidStatus"
+    },
+    {
+      "step": "A: supplier commits evidence hash",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0x4093893ee7152bc9d7833c5663263dc17edef391496244bbb82bdb58b9812906",
+      "gasUsed": "75479",
+      "block": "70178990"
+    },
+    {
+      "step": "A: supplier cannot approve own release",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected NotBuyer, got NotBuyer"
+    },
+    {
+      "step": "A: buyer approves release",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xc508ff65c56205e808fecae4f067b3431f66ca0232b2d24f7760c1bbeabd643a",
+      "gasUsed": "67087",
+      "block": "70178999"
+    },
+    {
+      "step": "A: supplier received the 0.07 USDC reserve",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "A: status is SETTLED",
+      "kind": "check",
+      "ok": true,
+      "detail": "status 5, outcome 3"
+    },
+    {
+      "step": "A: order contract holds nothing after settlement",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "A: accounting invariant holds",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "A: settled order cannot be approved twice",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected InvalidStatus, got InvalidStatus"
+    },
+    {
+      "step": "B dispute: buyer creates order",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xec56e655fa178471d4b6ec3d3887879fe5b146661b7effafc9e7966c10a87762",
+      "gasUsed": "1915130",
+      "block": "70179008"
+    },
+    {
+      "step": "B dispute: factory registers the buyer as msg.sender",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "B: supplier accepts",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0x00965b7f3c8587ccc775ce54f2067ad670cc46380d0bb85ee8adff53ed869dfc",
+      "gasUsed": "67208",
+      "block": "70179016"
+    },
+    {
+      "step": "B: buyer funds",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0x9de8ead1b55c0e66aa101cb68614dbdd71fdabf3458e5bca28f37afbf5e9b6b9",
+      "gasUsed": "86023",
+      "block": "70179024"
+    },
+    {
+      "step": "B: supplier commits evidence",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xd344343223db08f8035826f510ca5b23add23a63cbbe1b41bb7f02c0d284874a",
+      "gasUsed": "75479",
+      "block": "70179032"
+    },
+    {
+      "step": "B: buyer opens dispute",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xc655ce2143e45312b57cdc1900bfed415027febc662a228b3e6fda58fab48c86",
+      "gasUsed": "53439",
+      "block": "70179041"
+    },
+    {
+      "step": "B: release is frozen during dispute",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected InvalidStatus, got InvalidStatus"
+    },
+    {
+      "step": "B: arbiter cannot pay more than the reserve",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected InvalidPayout, got InvalidPayout"
+    },
+    {
+      "step": "B: supplier cannot resolve",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected NotArbiter, got NotArbiter"
+    },
+    {
+      "step": "B: arbiter awards supplier 0.04 of the 0.07 reserve",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xc5913a3bf0a7abe0a2c41e267fd7744cd2ab2ddaffdcd55af9fb08f4c629f51a",
+      "gasUsed": "77136",
+      "block": "70179049"
+    },
+    {
+      "step": "B: status is SETTLED",
+      "kind": "check",
+      "ok": true,
+      "detail": "status 5, outcome 4"
+    },
+    {
+      "step": "B: order contract holds nothing after settlement",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "B: accounting invariant holds",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "C no shipment: buyer creates order",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0x80c9006ada7d9a1006a35ac5de2c0ebab8ec2a7c0e8c014e90c5277aeef29e17",
+      "gasUsed": "1915130",
+      "block": "70179057"
+    },
+    {
+      "step": "C no shipment: factory registers the buyer as msg.sender",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "C: supplier accepts",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xeddb3702f7b9d9e988e579896f50f25708e0d78c97f98bf2871a0cc236486915",
+      "gasUsed": "67208",
+      "block": "70179066"
+    },
+    {
+      "step": "C: buyer funds",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xda5902554d55889eaadaa7fb8b9ca425ff0b5b075ff2080a40f7bb6dcba44607",
+      "gasUsed": "86023",
+      "block": "70179074"
+    },
+    {
+      "step": "C: refund is not available before the shipment deadline",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected DeadlineNotPassed, got DeadlineNotPassed"
+    },
+    {
+      "step": "C: supplier cannot submit evidence after the deadline",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected DeadlinePassed, got DeadlinePassed"
+    },
+    {
+      "step": "C: buyer reclaims the 0.07 reserve",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0x406af7684eb3001068292dc7e0bb7771a26a47ca0416f2692a5acc8ba9880bf2",
+      "gasUsed": "63156",
+      "block": "70179653"
+    },
+    {
+      "step": "C: status is SETTLED",
+      "kind": "check",
+      "ok": true,
+      "detail": "status 5, outcome 2"
+    },
+    {
+      "step": "C: order contract holds nothing after settlement",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "C: accounting invariant holds",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "D cancel: buyer creates order",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0x9443385acbd875ece7c54020cda32be4b5c210122d3d6037c7cd54fdf966aeb9",
+      "gasUsed": "1915130",
+      "block": "70179661"
+    },
+    {
+      "step": "D cancel: factory registers the buyer as msg.sender",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "D: outsider cannot cancel before the funding deadline",
+      "kind": "expected-revert",
+      "ok": true,
+      "detail": "expected NotBuyer, got NotBuyer"
+    },
+    {
+      "step": "D: buyer cancels the unfunded order",
+      "kind": "tx",
+      "ok": true,
+      "hash": "0xecfe2271517ed8dd4016ea0bd1cc7e838796e7158c660f8287c9b8ada223a512",
+      "gasUsed": "73883",
+      "block": "70179669"
+    },
+    {
+      "step": "D: status is SETTLED",
+      "kind": "check",
+      "ok": true,
+      "detail": "status 5, outcome 1"
+    },
+    {
+      "step": "D: order contract holds nothing after settlement",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "D: accounting invariant holds",
+      "kind": "check",
+      "ok": true
+    },
+    {
+      "step": "registry lists all four orders for the buyer",
+      "kind": "check",
+      "ok": true,
+      "detail": "count 4"
+    }
+  ]
+}

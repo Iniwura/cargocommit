@@ -1,0 +1,54 @@
+factory 0x1ddac1a17d437a43ba09591d338954516721f0a7 chain 5042002
+PASS  A happy path: buyer creates order
+PASS  A happy path: factory registers the buyer as msg.sender
+PASS  A: arbiter cannot accept terms  (expected NotSupplier, got NotSupplier)
+PASS  A: buyer cannot fund before acceptance  (expected InvalidStatus, got InvalidStatus)
+PASS  A: supplier accepts terms
+PASS  A: supplier cannot fund  (expected NotBuyer, got NotBuyer)
+PASS  A: wrong funding amount rejected  (expected FundingAmountMismatch, got FundingAmountMismatch)
+PASS  A: buyer funds 0.10 USDC
+PASS  A: supplier received the 30% deposit (0.03 USDC) at funding  (delta 30000000000000000)
+PASS  A: reserve 0.07 USDC protected in the order
+PASS  A: buyer cannot approve before evidence  (expected InvalidStatus, got InvalidStatus)
+PASS  A: supplier commits evidence hash
+PASS  A: supplier cannot approve own release  (expected NotBuyer, got NotBuyer)
+PASS  A: buyer approves release
+PASS  A: supplier received the 0.07 USDC reserve
+PASS  A: status is SETTLED  (status 5, outcome 3)
+PASS  A: order contract holds nothing after settlement
+PASS  A: accounting invariant holds
+PASS  A: settled order cannot be approved twice  (expected InvalidStatus, got InvalidStatus)
+PASS  B dispute: buyer creates order
+PASS  B dispute: factory registers the buyer as msg.sender
+PASS  B: supplier accepts
+PASS  B: buyer funds
+PASS  B: supplier commits evidence
+PASS  B: buyer opens dispute
+PASS  B: release is frozen during dispute  (expected InvalidStatus, got InvalidStatus)
+PASS  B: arbiter cannot pay more than the reserve  (expected InvalidPayout, got InvalidPayout)
+PASS  B: supplier cannot resolve  (expected NotArbiter, got NotArbiter)
+PASS  B: arbiter awards supplier 0.04 of the 0.07 reserve
+PASS  B: status is SETTLED  (status 5, outcome 4)
+PASS  B: order contract holds nothing after settlement
+PASS  B: accounting invariant holds
+PASS  C no shipment: buyer creates order
+PASS  C no shipment: factory registers the buyer as msg.sender
+PASS  C: supplier accepts
+PASS  C: buyer funds
+PASS  C: refund is not available before the shipment deadline  (expected DeadlineNotPassed, got DeadlineNotPassed)
+waiting for the shipment deadline of order C…
+PASS  C: supplier cannot submit evidence after the deadline  (expected DeadlinePassed, got DeadlinePassed)
+PASS  C: buyer reclaims the 0.07 reserve
+PASS  C: status is SETTLED  (status 5, outcome 2)
+PASS  C: order contract holds nothing after settlement
+PASS  C: accounting invariant holds
+PASS  D cancel: buyer creates order
+PASS  D cancel: factory registers the buyer as msg.sender
+PASS  D: outsider cannot cancel before the funding deadline  (expected NotBuyer, got NotBuyer)
+PASS  D: buyer cancels the unfunded order
+PASS  D: status is SETTLED  (status 5, outcome 1)
+PASS  D: order contract holds nothing after settlement
+PASS  D: accounting invariant holds
+PASS  registry lists all four orders for the buyer  (count 8)
+
+50/50 checks passed. Evidence written to microgrant/evidence/testnet-e2e.json

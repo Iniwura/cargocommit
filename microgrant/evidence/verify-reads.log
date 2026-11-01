@@ -1,0 +1,55 @@
+orders for participant: 8n
+
+0xB60079b481f6037BEF23b4fC99523Eb0165fe0ca  0.10 USDC  SETTLED / SUPPLIER_PAID  role=buyer
+  - Terms accepted: Supplier accepted the immutable terms.
+  - Order funded: 0.10 USDC locked. Deposit 0.03 USDC, protected reserve 0.07 USDC.
+  - Deposit released: 0.03 USDC sent to the supplier.
+  - Evidence committed: Commitment 0xcdcdcdcd…cdcdcd
+  - Release approved: Buyer approved the shipment evidence.
+  - Settled: SUPPLIER_PAID: supplier 0.07 USDC, buyer 0.00 USDC.
+
+0x9dE5850170A0D02c451319CF1123bD31A04CaF7c  0.10 USDC  SETTLED / DISPUTE_RESOLVED  role=buyer
+  - Terms accepted: Supplier accepted the immutable terms.
+  - Order funded: 0.10 USDC locked. Deposit 0.03 USDC, protected reserve 0.07 USDC.
+  - Deposit released: 0.03 USDC sent to the supplier.
+  - Evidence committed: Commitment 0xefefefef…efefef
+  - Dispute opened: Reason commitment 0x12121212…121212
+  - Dispute resolved: Supplier 0.04 USDC, buyer 0.03 USDC.
+  - Settled: DISPUTE_RESOLVED: supplier 0.04 USDC, buyer 0.03 USDC.
+
+0x69E374d846F06A331334E0B51362f96d3d8f5891  0.10 USDC  SETTLED / SHIPMENT_DEADLINE_REFUND  role=buyer
+  - Terms accepted: Supplier accepted the immutable terms.
+  - Order funded: 0.10 USDC locked. Deposit 0.03 USDC, protected reserve 0.07 USDC.
+  - Deposit released: 0.03 USDC sent to the supplier.
+  - Settled: SHIPMENT_DEADLINE_REFUND: supplier 0.00 USDC, buyer 0.07 USDC.
+
+0x775b348829752a94A883545A1e85b80819D78bbF  0.10 USDC  SETTLED / CANCELLED  role=buyer
+  - Order cancelled: Closed before funding. No funds were held.
+  - Settled: CANCELLED: supplier 0.00 USDC, buyer 0.00 USDC.
+
+0x2599BFE63D8e03E7361648838c7543f5695029E2  0.10 USDC  SETTLED / SUPPLIER_PAID  role=buyer
+  - Terms accepted: Supplier accepted the immutable terms.
+  - Order funded: 0.10 USDC locked. Deposit 0.03 USDC, protected reserve 0.07 USDC.
+  - Deposit released: 0.03 USDC sent to the supplier.
+  - Evidence committed: Commitment 0xcdcdcdcd…cdcdcd
+  - Release approved: Buyer approved the shipment evidence.
+  - Settled: SUPPLIER_PAID: supplier 0.07 USDC, buyer 0.00 USDC.
+
+0x1f111D33C0B18CC7aC5eb5A8c9F4E770A7334327  0.10 USDC  SETTLED / DISPUTE_RESOLVED  role=buyer
+  - Terms accepted: Supplier accepted the immutable terms.
+  - Order funded: 0.10 USDC locked. Deposit 0.03 USDC, protected reserve 0.07 USDC.
+  - Deposit released: 0.03 USDC sent to the supplier.
+  - Evidence committed: Commitment 0xefefefef…efefef
+  - Dispute opened: Reason commitment 0x12121212…121212
+  - Dispute resolved: Supplier 0.04 USDC, buyer 0.03 USDC.
+  - Settled: DISPUTE_RESOLVED: supplier 0.04 USDC, buyer 0.03 USDC.
+
+0x214F5fA11C9f53E337F6E6CC071F88736FEb1A86  0.10 USDC  SETTLED / SHIPMENT_DEADLINE_REFUND  role=buyer
+  - Terms accepted: Supplier accepted the immutable terms.
+  - Order funded: 0.10 USDC locked. Deposit 0.03 USDC, protected reserve 0.07 USDC.
+  - Deposit released: 0.03 USDC sent to the supplier.
+  - Settled: SHIPMENT_DEADLINE_REFUND: supplier 0.00 USDC, buyer 0.07 USDC.
+
+0x922e8cdBe827C6D6a86ff998B14930855555ff91  0.10 USDC  SETTLED / CANCELLED  role=buyer
+  - Order cancelled: Closed before funding. No funds were held.
+  - Settled: CANCELLED: supplier 0.00 USDC, buyer 0.00 USDC.

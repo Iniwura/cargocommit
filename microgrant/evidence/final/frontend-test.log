@@ -1,0 +1,31 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/terms.test.ts:
+(pass) terms > accepts a valid form and converts to native units and bps [2.94ms]
+(pass) terms > rejects duplicate or self roles [0.21ms]
+(pass) terms > rejects bad amounts and percentages [0.20ms]
+(pass) terms > windows must be at least 10 minutes and fit in 365 days [0.14ms]
+(pass) terms > deadlines are strictly increasing and stay inside the contract horizon [0.12ms]
+
+tests/money.test.ts:
+(pass) money > parses USDC input into 6-decimal units [0.05ms]
+(pass) money > rejects malformed or over-precise input [0.06ms]
+(pass) money > converts between the 6-decimal and 18-decimal views losslessly [0.05ms]
+(pass) money > formats native values for display [0.15ms]
+(pass) money > split mirrors the contract: deposit rounds down, reserve is the remainder [0.07ms]
+
+tests/order.test.ts:
+(pass) roles > matches case-insensitively and defaults to observer [0.14ms]
+(pass) next step gating > only the supplier can accept, only before the funding deadline [0.19ms]
+(pass) next step gating > only the buyer can fund an accepted order before the deadline [0.03ms]
+(pass) next step gating > anyone can close an expired unfunded order, observers cannot before [0.03ms]
+(pass) next step gating > evidence, refund, approve, dispute and timeout follow the deadlines [0.06ms]
+(pass) next step gating > dispute: arbiter resolves in time, anyone participant applies the fallback after [0.08ms]
+(pass) next step gating > settled orders offer nothing except a pending withdrawal [0.06ms]
+(pass) block ranges > covers [from, to] exactly once in bounded chunks [0.16ms]
+
+ 18 pass
+ 0 fail
+ 80 expect() calls
+Ran 18 tests across 3 files. [95.00ms]
+exit 0
