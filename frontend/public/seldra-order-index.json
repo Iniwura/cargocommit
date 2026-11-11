@@ -2,8 +2,8 @@
   "version": 1,
   "chainId": 5042,
   "factory": "0x934159c33c25d0b2e27b237b4ca603d85f019cf3",
-  "indexedThrough": 30615176,
-  "activityIndexedThrough": 30615176,
+  "indexedThrough": 30664124,
+  "activityIndexedThrough": 30664124,
   "activity": {
     "0x7be2440da225495735957b4b206a4ab4998372fa": [],
     "0x6ff65de6016d9e1083b2f7d7e3abaff1ab2c9201": [
@@ -111,7 +111,7 @@
     ]
   },
   "complete": true,
-  "generatedAt": "2026-11-11T01:59:39.181Z",
+  "generatedAt": "2026-11-11T08:53:16.918Z",
   "orders": [
     {
       "order": "0x7be2440da225495735957b4b206a4ab4998372fa",
